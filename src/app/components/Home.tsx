@@ -46,6 +46,42 @@ export function Home() {
   { time: string; value: number }[]
 >([]);
 
+const averageGlucose =
+  glucoseHistory.length > 0
+    ? Math.round(
+        glucoseHistory.reduce(
+          (sum, point) => sum + point.value,
+          0
+        ) / glucoseHistory.length
+      )
+    : 0;
+
+const minGlucose =
+  glucoseHistory.length > 0
+    ? Math.min(
+        ...glucoseHistory.map((p) => p.value)
+      )
+    : 0;
+
+const maxGlucose =
+  glucoseHistory.length > 0
+    ? Math.max(
+        ...glucoseHistory.map((p) => p.value)
+      )
+    : 0;
+
+const timeInRange =
+  glucoseHistory.length > 0
+    ? Math.round(
+        (glucoseHistory.filter(
+          (p) => p.value >= 70 && p.value <= 180
+        ).length /
+          glucoseHistory.length) *
+          100
+      )
+    : 0;
+
+
 
   useEffect(() => {
     getDexcomData()
@@ -89,6 +125,13 @@ export function Home() {
     singleDown: "↘ Fallend",
     doubleDown: "↓ Stark fallend",
   };
+
+  const tirText =
+  timeInRange >= 70
+    ? "Sehr gut"
+    : timeInRange >= 50
+    ? "Gut"
+    : "Verbesserungswürdig";
 
   return (
     <div className="min-h-screen bg-white">
@@ -146,6 +189,64 @@ export function Home() {
   <h3 className="mb-4">Glukoseverlauf</h3>
 
   <GlucoseChart data={glucoseHistory} />
+</div>
+
+<div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
+  <h3 className="mb-4 text-gray-800">
+    Tagesstatistik
+  </h3>
+
+  <div className="grid grid-cols-2 gap-4">
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Durchschnitt
+      </p>
+      <p className="text-2xl font-semibold">
+        {averageGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Time in Range
+      </p>
+      <p className="text-2xl font-semibold text-green-600">
+        {timeInRange}%
+      </p>
+      <p className="text-green-600 font-medium">
+    {tirText}
+  </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Minimum
+      </p>
+      <p className="text-2xl font-semibold">
+        {minGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Maximum
+      </p>
+      <p className="text-2xl font-semibold">
+        {maxGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+  </div>
 </div>
 
         {/* Target Range Card */}
