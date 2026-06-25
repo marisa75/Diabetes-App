@@ -88,6 +88,37 @@ const MOCK_RESULT: NutritionData = {
     { id: "3", name: "Tomate", weight: 30, unit: "g" },
   ],
 };
+function convertLogmealToNutritionData(logmealData: any): NutritionData {
+  const nutrition = logmealData.nutritional_info;
+  const carbs = nutrition?.totalNutrients?.CHOCDF?.quantity ?? 0;
+  
+  return {
+    meal: logmealData.foodName ?? "Unbekannte Mahlzeit",
+    confidence: Math.round((logmealData.prob ?? 0) * 100),
+    portion: nutrition?.totalWeight ?? 100,
+    portionUnit: "g",
+    diabetes: {
+      carbs: Math.round(carbs * 10) / 10,
+      sugar: Math.round((nutrition?.totalNutrients?.SUGAR?.quantity ?? 0) * 10) / 10,
+      fiber: Math.round((nutrition?.totalNutrients?.FIBTG?.quantity ?? 0) * 10) / 10,
+      be: Math.round((carbs / 12) * 10) / 10,  // BE = KH ÷ 12
+      calories: Math.round(nutrition?.calories ?? 0),
+    },
+    full: {
+      protein: Math.round((nutrition?.totalNutrients?.PROCNT?.quantity ?? 0) * 10) / 10,
+      fat: Math.round((nutrition?.totalNutrients?.FAT?.quantity ?? 0) * 10) / 10,
+      saturatedFat: Math.round((nutrition?.totalNutrients?.FASAT?.quantity ?? 0) * 10) / 10,
+      sodium: Math.round(nutrition?.totalNutrients?.NA?.quantity ?? 0),
+      potassium: Math.round(nutrition?.totalNutrients?.K?.quantity ?? 0),
+    },
+    ingredients: logmealData.foodItems?.map((item: any, i: number) => ({
+      id: String(i),
+      name: item.name,
+      weight: item.quantity ?? 100,
+      unit: "g"
+    })) ?? []
+  };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -838,14 +869,59 @@ export function NutritionScan() {
   const [imageSrc, setImageSrc] = useState<string>("");
   const [resultData, setResultData] = useState<NutritionData>(MOCK_RESULT);
 
-  const handleCapture = useCallback((src: string) => {
+const handleCapture = useCallback(async (src: string) => {
     setImageSrc(src);
     setAppState("loading");
-    // Simulate API call delay
-    setTimeout(() => {
+
+    try {
+      // Blob-URL zu Base64 umwandeln
+      const blobResponse = await fetch(src);
+      const blob = await blobResponse.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.readAsDataURL(blob);
+      });
+
+      const response = await fetch('http://localhost:3001/api/analyze-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64 })
+      });
+
+      const data = await response.json();
+
+      setResultData({
+        meal: data.meal,
+        confidence: data.confidence,
+        portion: data.ingredients?.[0]?.weight ?? 100,
+        portionUnit: data.ingredients?.[0]?.unit ?? "g",
+        diabetes: {
+          carbs: data.diabetes?.carbs ?? 0,
+          sugar: data.diabetes?.sugar ?? 0,
+          fiber: data.diabetes?.fiber ?? 0,
+          be: data.diabetes?.be ?? 0,
+          calories: data.diabetes?.calories ?? 0,
+        },
+        full: {
+          protein: data.full?.protein ?? 0,
+          fat: data.full?.fat ?? 0,
+          saturatedFat: 0,
+          sodium: 0,
+          potassium: 0,
+        },
+        ingredients: data.ingredients ?? [],
+      });
+
+      setAppState("result");
+    } catch (err) {
+      console.error(err);
       setResultData(MOCK_RESULT);
       setAppState("result");
-    }, 3500);
+    }
   }, []);
 
   const handleReset = useCallback(() => {
