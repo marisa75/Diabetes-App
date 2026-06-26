@@ -60,6 +60,12 @@ interface NutritionData {
   };
   ingredients: Ingredient[];
 }
+interface HistoryEntry {
+  id: string;
+  date: string;
+  data: NutritionData;
+  imageSrc: string;
+}
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -145,6 +151,8 @@ function ConfidenceBadge({ score }: { score: number }) {
 
 function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [scanning, setScanning] = useState(false);
 
   const handleFile = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +163,46 @@ function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
     },
     [onCapture]
   );
+
+  const startCamera = useCallback(async () => {
+    setScanning(true);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    }
+
+    const { BrowserMultiFormatReader } = await import("@zxing/library");
+    const reader = new BrowserMultiFormatReader();
+
+    reader.decodeFromVideoDevice(null, videoRef.current!, async (result, err) => {
+      if (result) {
+        const barcode = result.getText();
+        reader.reset();
+        stream.getTracks().forEach(t => t.stop());
+        setScanning(false);
+
+        const response = await fetch(
+          `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
+        );
+        const data = await response.json();
+
+        if (data.status === 1) {
+          onCapture(`barcode:${JSON.stringify(data.product)}`);
+        } else {
+          alert("Produkt nicht gefunden!");
+        }
+      }
+    });
+  }, [onCapture]);
+
+  const stopCamera = useCallback(() => {
+    const stream = videoRef.current?.srcObject as MediaStream;
+    stream?.getTracks().forEach(t => t.stop());
+    setScanning(false);
+  }, []);
 
   return (
     <motion.div
@@ -175,54 +223,76 @@ function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
         </div>
         <h2 className="text-gray-800 mb-1">Mahlzeit analysieren</h2>
         <p className="text-gray-500 text-sm max-w-xs">
-          Fotografiere dein Essen – unsere KI erkennt Nährwerte und berechnet
-          automatisch deine BE/KE-Werte.
+          Fotografiere dein Essen oder scanne einen Barcode.
         </p>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col gap-3">
-        <button
-          onClick={() => onCapture("camera")}
-          className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.98]"
-        >
-          <span
-            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${cornflower}20` }}
-          >
-            <Camera className="w-5 h-5" style={{ color: cornflower }} />
-          </span>
-          <div className="text-left">
-            <p className="text-gray-800 text-sm font-medium">Foto aufnehmen</p>
-            <p className="text-gray-400 text-xs">Kamera öffnen</p>
+      {/* Kamera-Ansicht */}
+      {scanning && (
+        <div className="flex flex-col gap-3">
+          <div className="relative rounded-2xl overflow-hidden bg-black">
+            <video ref={videoRef} className="w-full rounded-2xl" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-2 border-white rounded-lg w-48 h-32 opacity-60" />
+            </div>
           </div>
-          <div className="ml-auto text-gray-300">›</div>
-        </button>
+          <p className="text-center text-sm text-gray-500">
+            Barcode vor die Kamera halten — wird automatisch erkannt
+          </p>
+          <button
+            onClick={stopCamera}
+            className="w-full py-3 rounded-2xl bg-red-50 text-red-400 text-sm font-medium"
+          >
+            Abbrechen
+          </button>
+        </div>
+      )}
 
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.98]"
-        >
-          <span
-            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${cornflower}20` }}
+      {/* Action Buttons */}
+      {!scanning && (
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={startCamera}
+            className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.98]"
           >
-            <ImageIcon className="w-5 h-5" style={{ color: cornflower }} />
-          </span>
-          <div className="text-left">
-            <p className="text-gray-800 text-sm font-medium">Aus Galerie wählen</p>
-            <p className="text-gray-400 text-xs">Bild hochladen</p>
-          </div>
-          <div className="ml-auto text-gray-300">›</div>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFile}
-        />
-      </div>
+            <span
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${cornflower}20` }}
+            >
+              <Camera className="w-5 h-5" style={{ color: cornflower }} />
+            </span>
+            <div className="text-left">
+              <p className="text-gray-800 text-sm font-medium">Kamera öffnen</p>
+              <p className="text-gray-400 text-xs">Foto aufnehmen oder Barcode scannen</p>
+            </div>
+            <div className="ml-auto text-gray-300">›</div>
+          </button>
+
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow active:scale-[0.98]"
+          >
+            <span
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${cornflower}20` }}
+            >
+              <ImageIcon className="w-5 h-5" style={{ color: cornflower }} />
+            </span>
+            <div className="text-left">
+              <p className="text-gray-800 text-sm font-medium">Aus Galerie wählen</p>
+              <p className="text-gray-400 text-xs">Bild hochladen</p>
+            </div>
+            <div className="ml-auto text-gray-300">›</div>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFile}
+          />
+        </div>
+      )}
 
       {/* Disclaimer */}
       <div className="flex items-start gap-2 bg-blue-50 rounded-xl px-4 py-3 text-xs text-blue-600">
@@ -235,6 +305,7 @@ function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
     </motion.div>
   );
 }
+
 
 // ─── Loading State ─────────────────────────────────────────────────────────────
 
@@ -862,16 +933,120 @@ function SavedConfirmation({ onReset }: { onReset: () => void }) {
   );
 }
 
+// ─── History View ──────────────────────────────────────────────────────────────
+
+function HistoryView() {
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("scan-history") || "[]");
+    setEntries(stored);
+  }, []);
+
+  const deleteEntry = (id: string) => {
+    const updated = entries.filter(e => e.id !== id);
+    setEntries(updated);
+    localStorage.setItem("scan-history", JSON.stringify(updated));
+  };
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+          style={{ backgroundColor: `${cornflower}15` }}>
+          <Camera className="w-8 h-8" style={{ color: cornflower }} />
+        </div>
+        <p className="text-gray-500 text-sm">Noch keine gespeicherten Analysen</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {entries.map((entry) => (
+        <div key={entry.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3">
+            {entry.imageSrc ? (
+              <img src={entry.imageSrc} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${cornflower}15` }}>
+                <Camera className="w-6 h-6" style={{ color: cornflower }} />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-800 truncate">{entry.data.meal}</p>
+              <p className="text-xs text-gray-400">{entry.date}</p>
+            </div>
+            <button
+              onClick={() => deleteEntry(entry.id)}
+              className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"
+            >
+              <X className="w-3 h-3 text-red-400" />
+            </button>
+          </div>
+          <div className="border-t border-gray-100 px-4 py-2 grid grid-cols-3 gap-2">
+            <div className="text-center">
+              <p className="text-xs text-gray-400">KH</p>
+              <p className="text-sm font-medium" style={{ color: cornflower }}>{entry.data.diabetes.carbs}g</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-400">BE</p>
+              <p className="text-sm font-medium text-purple-500">{entry.data.diabetes.be}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-400">kcal</p>
+              <p className="text-sm font-medium text-orange-500">{entry.data.diabetes.calories}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export function NutritionScan() {
   const [appState, setAppState] = useState<AppState>("upload");
   const [imageSrc, setImageSrc] = useState<string>("");
   const [resultData, setResultData] = useState<NutritionData>(MOCK_RESULT);
+  const [tab, setTab] = useState<"scan" | "history">("scan"); // ← neu
 
 const handleCapture = useCallback(async (src: string) => {
     setImageSrc(src);
     setAppState("loading");
+
+    // Barcode-Fall
+    if (src.startsWith("barcode:")) {
+      const product = JSON.parse(src.replace("barcode:", ""));
+      const nutriments = product.nutriments || {};
+      const carbs = nutriments["carbohydrates_100g"] ?? 0;
+
+      setResultData({
+        meal: product.product_name ?? "Unbekanntes Produkt",
+        confidence: 100,
+        portion: 100,
+        portionUnit: "g",
+        diabetes: {
+          carbs: Math.round(carbs * 10) / 10,
+          sugar: Math.round((nutriments["sugars_100g"] ?? 0) * 10) / 10,
+          fiber: Math.round((nutriments["fiber_100g"] ?? 0) * 10) / 10,
+          be: Math.round((carbs / 12) * 10) / 10,
+          calories: Math.round(nutriments["energy-kcal_100g"] ?? 0),
+        },
+        full: {
+          protein: Math.round((nutriments["proteins_100g"] ?? 0) * 10) / 10,
+          fat: Math.round((nutriments["fat_100g"] ?? 0) * 10) / 10,
+          saturatedFat: Math.round((nutriments["saturated-fat_100g"] ?? 0) * 10) / 10,
+          sodium: Math.round((nutriments["sodium_100g"] ?? 0) * 1000),
+          potassium: 0,
+        },
+        ingredients: [],
+      });
+      setAppState("result");
+      return;
+    }
 
     try {
       // Blob-URL zu Base64 umwandeln
@@ -929,13 +1104,20 @@ const handleCapture = useCallback(async (src: string) => {
     setImageSrc("");
   }, []);
 
-  const handleSave = useCallback(() => {
-    setAppState("saved");
-  }, []);
+ const handleSave = useCallback(() => {
+  const entry: HistoryEntry = {
+    id: Date.now().toString(),
+    date: new Date().toLocaleString("de-DE"),
+    data: resultData,
+    imageSrc: imageSrc.startsWith("barcode:") ? "" : imageSrc,
+  };
 
-  return (
+  const existing = JSON.parse(localStorage.getItem("scan-history") || "[]");
+  localStorage.setItem("scan-history", JSON.stringify([entry, ...existing]));
+  setAppState("saved");
+}, [resultData, imageSrc]);
+return (
     <div className="min-h-screen bg-gray-50">
-      {/* MARKER-MAKE-KIT-INVOKED */}
       {/* Header */}
       <div
         className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3"
@@ -953,48 +1135,63 @@ const handleCapture = useCallback(async (src: string) => {
           </h1>
           <p className="text-gray-400 text-xs mt-0.5">KI-Lebensmittelerkennung</p>
         </div>
-        {appState === "result" && (
-          <Badge
-            className="ml-auto text-xs border-0"
-            style={{ backgroundColor: `${cornflower}15`, color: cornflower }}
+        <div className="ml-auto flex gap-2">
+          <button
+            onClick={() => setTab("scan")}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: tab === "scan" ? cornflower : `${cornflower}15`,
+              color: tab === "scan" ? "white" : cornflower,
+            }}
           >
-            Ergebnis
-          </Badge>
-        )}
+            Scan
+          </button>
+          <button
+            onClick={() => setTab("history")}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: tab === "history" ? cornflower : `${cornflower}15`,
+              color: tab === "history" ? "white" : cornflower,
+            }}
+          >
+            Historie
+          </button>
+        </div>
       </div>
 
       {/* Content */}
       <div className="max-w-lg mx-auto px-4 pt-5">
-        <AnimatePresence mode="wait">
-          {appState === "upload" && (
-            <motion.div key="upload" exit={{ opacity: 0, y: -16 }}>
-              <UploadCard onCapture={handleCapture} />
-            </motion.div>
-          )}
-
-          {appState === "loading" && (
-            <motion.div key="loading" exit={{ opacity: 0 }}>
-              <AnalysisLoading imageSrc={imageSrc} />
-            </motion.div>
-          )}
-
-          {appState === "result" && (
-            <motion.div key="result" exit={{ opacity: 0 }}>
-              <ResultView
-                imageSrc={imageSrc}
-                data={resultData}
-                onReset={handleReset}
-                onSave={handleSave}
-              />
-            </motion.div>
-          )}
-
-          {appState === "saved" && (
-            <motion.div key="saved" exit={{ opacity: 0 }}>
-              <SavedConfirmation onReset={handleReset} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {tab === "history" ? (
+          <HistoryView />
+        ) : (
+          <AnimatePresence mode="wait">
+            {appState === "upload" && (
+              <motion.div key="upload" exit={{ opacity: 0, y: -16 }}>
+                <UploadCard onCapture={handleCapture} />
+              </motion.div>
+            )}
+            {appState === "loading" && (
+              <motion.div key="loading" exit={{ opacity: 0 }}>
+                <AnalysisLoading imageSrc={imageSrc} />
+              </motion.div>
+            )}
+            {appState === "result" && (
+              <motion.div key="result" exit={{ opacity: 0 }}>
+                <ResultView
+                  imageSrc={imageSrc}
+                  data={resultData}
+                  onReset={handleReset}
+                  onSave={handleSave}
+                />
+              </motion.div>
+            )}
+            {appState === "saved" && (
+              <motion.div key="saved" exit={{ opacity: 0 }}>
+                <SavedConfirmation onReset={handleReset} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );
