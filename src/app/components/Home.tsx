@@ -249,51 +249,6 @@ const timeInRange =
   </div>
 </div>
 
-        {/* Target Range Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
-          <h3 className="text-gray-600 mb-3">Zielbereich</h3>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Minimum</p>
-              <p className="text-2xl font-semibold text-gray-800">
-                {sensorData.targetRange.min} <span className="text-sm text-gray-500">mg/dL</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-500 text-sm">Maximum</p>
-              <p className="text-2xl font-semibold text-gray-800">
-                {sensorData.targetRange.max} <span className="text-sm text-gray-500">mg/dL</span>
-              </p>
-            </div>
-          </div>
-          {/* Visual Range Indicator */}
-          <div className="mt-4 h-2 bg-gray-100 rounded-full relative overflow-hidden">
-            <div
-              className="absolute h-full bg-[#6495ED] rounded-full"
-              style={{
-                left: `${((sensorData.targetRange.min - 0) / 300) * 100}%`,
-                width: `${((sensorData.targetRange.max - sensorData.targetRange.min) / 300) * 100}%`,
-              }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-              style={{
-                left: `${(sensorData.currentGlucose / 300) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Insulin and Battery Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Insulin Level */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <p className="text-gray-600 text-sm mb-2">Insulin</p>
-            <p className="text-3xl font-semibold text-gray-800">
-              {sensorData.insulinLevel}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">Einheiten</p>
-          </div>
 
           {/* Battery Level */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -308,8 +263,7 @@ const timeInRange =
               />
             </div>
           </div>
-        </div>
-
+       
 
         {/* Quick Actions */}
         <div className="mt-6 bg-[#6495ED]/5 border border-[#6495ED]/20 rounded-2xl p-4">
