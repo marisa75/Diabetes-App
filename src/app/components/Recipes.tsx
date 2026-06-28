@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { getRecipes } from "../../api/recipes";
 import {
   Search,
   Clock,
@@ -423,10 +424,25 @@ export function Recipes() {
   const [activeFilter, setActiveFilter] = useState<FilterChip>("Alle");
   const [activeView, setActiveView] = useState<ViewTab>("Alle Rezepte");
 
+  const [recipes, setRecipes] = useState<Recipe[]>(RECIPES);
+
+useEffect(() => {
+  async function loadRecipes() {
+    try {
+      const data = await getRecipes();
+      setRecipes(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadRecipes();
+}, []);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
 
-    return RECIPES.filter((r) => {
+    return recipes.filter((r) =>{
       if (activeView === "Favoriten" && !r.favorited) return false;
       if (activeView === "Meine Rezepte") return false; // empty for prototype
 
@@ -441,7 +457,7 @@ export function Recipes() {
 
       return matchesSearch && matchesFilter;
     });
-  }, [search, activeFilter, activeView]);
+  }, [search, activeFilter, activeView, recipes]);
 
   const featured = filtered.find((r) => r.featured);
   const listRecipes = filtered.filter((r) => !r.featured);
