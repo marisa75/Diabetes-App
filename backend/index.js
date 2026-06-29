@@ -220,6 +220,9 @@ app.listen(process.env.PORT || 3001, () => {
     fs.unlinkSync(tempPath);
     const imageId = segResponse.data.imageId;
     const topResult = segResponse.data.segmentation_results?.[0]?.recognition_results?.[0];
+    const allDishes = segResponse.data.segmentation_results?.map(
+    (seg: any) => seg.recognition_results?.[0]?.name
+    ).filter(Boolean).join(", ");
 
     // Schritt 2: Nährwerte
     const nutriResponse = await axios.post(
@@ -259,7 +262,7 @@ app.listen(process.env.PORT || 3001, () => {
     const items = ingrResponse.data.recipe_per_item || ingrResponse.data.recipe || [];
 
     res.json({
-      meal: topResult?.name ?? "Unbekannte Mahlzeit",
+      meal: allDishes ?? topResult?.name ?? "Unbekannte Mahlzeit",
       confidence: Math.round((topResult?.prob ?? 0) * 100),
       diabetes: {
         carbs: Math.round(carbs * 10) / 10,
