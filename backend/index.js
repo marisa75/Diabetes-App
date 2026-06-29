@@ -221,7 +221,7 @@ app.listen(process.env.PORT || 3001, () => {
     const imageId = segResponse.data.imageId;
     const topResult = segResponse.data.segmentation_results?.[0]?.recognition_results?.[0];
     const allDishes = segResponse.data.segmentation_results?.map(
-    (seg: any) => seg.recognition_results?.[0]?.name
+    (seg) => seg.recognition_results?.[0]?.name
     ).filter(Boolean).join(", ");
 
     // Schritt 2: Nährwerte
