@@ -9,13 +9,6 @@ export function Home() {
   
   
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("de-DE", {
       weekday: "long",
@@ -80,7 +73,23 @@ const timeInRange =
           100
       )
     : 0;
+    
+    const lastMeasurement = sensorData.lastUpdate;
 
+    const [sensorConnected, setSensorConnected] = useState(false);
+    
+    const nextUpdate = (() => {
+      if (!sensorData.lastUpdate) return "--";
+    
+      const last = new Date(sensorData.lastUpdate);
+    
+      last.setMinutes(last.getMinutes() + 5);
+    
+      return last.toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    })();
 
 
   useEffect(() => {
@@ -114,8 +123,12 @@ const timeInRange =
               value: entry.value,
             }))
         );
+        setSensorConnected(true);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        setSensorConnected(false);
+      });
   }, []);
 
   const trendMap: Record<string, string> = {
@@ -158,7 +171,26 @@ const timeInRange =
         </div>
       </div>
 
+      <div className="flex gap-3">
 
+
+
+{/* Sensorstatus */}
+<div
+  className="flex-1 bg-[#6495ED] text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2"
+>
+  <div
+    className={`w-3 h-3 rounded-full ${
+      sensorConnected ? "bg-green-400" : "bg-red-400"
+    }`}
+  />
+
+  <span className="font-medium">
+    {sensorConnected ? "Sensor verbunden" : "Sensor nicht verbunden"}
+  </span>
+</div>
+
+</div>
 
       {/* Sensor Data */}
       <div className="p-4 max-w-screen-lg mx-auto">
@@ -184,12 +216,16 @@ const timeInRange =
           </div>
         </div>
 
-        {/* Langzeit Glukoseerlauf */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
-  <h3 className="mb-4">Glukoseverlauf</h3>
 
-  <GlucoseChart data={glucoseHistory} />
-</div>
+
+<div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+
+
+
+
+
+
+
 
 <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
   <h3 className="mb-4 text-gray-800">
@@ -250,20 +286,15 @@ const timeInRange =
 </div>
 
 
-          {/* Battery Level */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <p className="text-gray-600 text-sm mb-2">Batterie</p>
-            <p className="text-3xl font-semibold text-gray-800">
-              {sensorData.batteryLevel}%
-            </p>
-            <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#6495ED] rounded-full transition-all"
-                style={{ width: `${sensorData.batteryLevel}%` }}
-              />
-            </div>
-          </div>
-       
+
+
+        {/* Langzeit Glukoseerlauf */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
+  <h3 className="mb-4">Glukoseverlauf</h3>
+
+  <GlucoseChart data={glucoseHistory} />
+</div>
+
 
         {/* Quick Actions */}
         <div className="mt-6 bg-[#6495ED]/5 border border-[#6495ED]/20 rounded-2xl p-4">
@@ -280,7 +311,7 @@ const timeInRange =
       </div>
     </div>
 
-
+    </div>
 
   );
   
