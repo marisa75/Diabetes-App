@@ -29,6 +29,23 @@ let recipes = [
     filterTags: ["Mittagessen", "Viel Ballaststoffe"],
     featured: true,
     favorited: false,
+    ingredients: [
+      "150 g Hähnchenbrust",
+      "1 Zucchini",
+      "1 Paprika",
+      "100 g Kirschtomaten",
+      "50 g Feta",
+      "1 EL Olivenöl",
+      "Saft von 1/2 Zitrone",
+      "Salz, Pfeffer, Oregano",
+    ],
+    steps: [
+      "Hähnchenbrust würzen und in einer Pfanne mit etwas Olivenöl goldbraun braten.",
+      "Zucchini und Paprika in mundgerechte Stücke schneiden und kurz mit anbraten.",
+      "Kirschtomaten halbieren und Feta würfeln.",
+      "Alles in einer Schüssel anrichten, mit Zitronensaft und Olivenöl beträufeln.",
+      "Mit Salz, Pfeffer und Oregano abschmecken und servieren.",
+    ],
   },
   {
     id: "2",
@@ -47,6 +64,19 @@ let recipes = [
       "Vegetarisch",
     ],
     favorited: true,
+    ingredients: [
+      "50 g Haferflocken",
+      "150 ml Milch oder Pflanzendrink",
+      "100 g gemischte Beeren",
+      "100 g Naturjoghurt",
+      "1 TL Honig (optional)",
+    ],
+    steps: [
+      "Haferflocken mit Milch in einem Topf oder der Mikrowelle kurz erwärmen.",
+      "Joghurt unterrühren.",
+      "Mit frischen oder aufgetauten Beeren toppen.",
+      "Nach Belieben mit etwas Honig beträufeln.",
+    ],
   },
   {
     id: "3",
@@ -65,6 +95,21 @@ let recipes = [
       "Vegetarisch",
     ],
     favorited: false,
+    ingredients: [
+      "150 g gekochte Linsen",
+      "50 g Feta",
+      "1/2 Salatgurke",
+      "1 kleine rote Zwiebel",
+      "1 EL Olivenöl",
+      "1 EL Essig",
+      "Salz, Pfeffer",
+    ],
+    steps: [
+      "Linsen abtropfen lassen und in eine Schüssel geben.",
+      "Gurke und Zwiebel klein würfeln und dazugeben.",
+      "Feta zerbröckeln und untermengen.",
+      "Mit Olivenöl, Essig, Salz und Pfeffer abschmecken.",
+    ],
   },
   {
     id: "4",
@@ -83,6 +128,20 @@ let recipes = [
       "Vegetarisch",
     ],
     favorited: false,
+    ingredients: [
+      "2 Zucchini",
+      "200 g passierte Tomaten",
+      "1 Knoblauchzehe",
+      "1 EL Olivenöl",
+      "Frisches Basilikum",
+      "Salz, Pfeffer",
+    ],
+    steps: [
+      "Zucchini mit einem Spiralschneider zu \"Nudeln\" verarbeiten.",
+      "Knoblauch in Olivenöl andünsten, passierte Tomaten dazugeben und köcheln lassen.",
+      "Mit Salz, Pfeffer und Basilikum würzen.",
+      "Zucchini-Nudeln kurz in der Sauce erwärmen und servieren.",
+    ],
   },
   {
     id: "5",
@@ -101,6 +160,18 @@ let recipes = [
       "Vegetarisch",
     ],
     favorited: true,
+    ingredients: [
+      "200 g Magerquark",
+      "1 Apfel",
+      "1/2 TL Zimt",
+      "1 TL Honig (optional)",
+    ],
+    steps: [
+      "Apfel waschen, entkernen und fein raspeln oder würfeln.",
+      "Quark mit Zimt verrühren.",
+      "Apfelstücke unterheben.",
+      "Nach Belieben mit Honig süßen.",
+    ],
   },
 ];
 
@@ -113,8 +184,16 @@ router.get("/api/recipes", (req, res) => {
 // ─── POST: neues Rezept hinzufügen ──────────────────────────────────────────
 
 router.post("/api/recipes", (req, res) => {
-  const { title, category, time, description, nutrition, filterTags } =
-    req.body;
+  const {
+    title,
+    category,
+    time,
+    description,
+    nutrition,
+    filterTags,
+    ingredients,
+    steps,
+  } = req.body;
 
   // Einfache Validierung
   if (!title || typeof title !== "string" || !title.trim()) {
@@ -134,6 +213,8 @@ router.post("/api/recipes", (req, res) => {
     description: description || "Eigenes Rezept.",
     nutrition,
     filterTags: Array.isArray(filterTags) ? filterTags : [],
+    ingredients: Array.isArray(ingredients) ? ingredients : [],
+    steps: Array.isArray(steps) ? steps : [],
     favorited: false,
     isMine: true,
   };

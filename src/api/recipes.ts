@@ -21,6 +21,8 @@ export async function createRecipe(recipe: {
     protein?: number;
   };
   filterTags: string[];
+  ingredients: string[];
+  steps: string[];
 }) {
   const response = await fetch("http://localhost:3001/api/recipes", {
     method: "POST",

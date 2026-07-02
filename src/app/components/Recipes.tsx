@@ -78,6 +78,8 @@ interface Recipe {
   featured?: boolean;
   favorited?: boolean;
   isMine?: boolean;
+  ingredients?: string[];
+  steps?: string[];
 }
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
@@ -97,6 +99,23 @@ const RECIPES: Recipe[] = [
     filterTags: ["Mittagessen", "Viel Ballaststoffe"],
     featured: true,
     favorited: false,
+    ingredients: [
+      "150 g Hähnchenbrust",
+      "1 Zucchini",
+      "1 Paprika",
+      "100 g Kirschtomaten",
+      "50 g Feta",
+      "1 EL Olivenöl",
+      "Saft von 1/2 Zitrone",
+      "Salz, Pfeffer, Oregano",
+    ],
+    steps: [
+      "Hähnchenbrust würzen und in einer Pfanne mit etwas Olivenöl goldbraun braten.",
+      "Zucchini und Paprika in mundgerechte Stücke schneiden und kurz mit anbraten.",
+      "Kirschtomaten halbieren und Feta würfeln.",
+      "Alles in einer Schüssel anrichten, mit Zitronensaft und Olivenöl beträufeln.",
+      "Mit Salz, Pfeffer und Oregano abschmecken und servieren.",
+    ],
   },
   {
     id: "2",
@@ -107,6 +126,19 @@ const RECIPES: Recipe[] = [
     nutrition: { carbs: 32, fiber: 8 },
     filterTags: ["Frühstück", "Viel Ballaststoffe", "Schnell", "Vegetarisch"],
     favorited: true,
+    ingredients: [
+      "50 g Haferflocken",
+      "150 ml Milch oder Pflanzendrink",
+      "100 g gemischte Beeren",
+      "100 g Naturjoghurt",
+      "1 TL Honig (optional)",
+    ],
+    steps: [
+      "Haferflocken mit Milch in einem Topf oder der Mikrowelle kurz erwärmen.",
+      "Joghurt unterrühren.",
+      "Mit frischen oder aufgetauten Beeren toppen.",
+      "Nach Belieben mit etwas Honig beträufeln.",
+    ],
   },
   {
     id: "3",
@@ -117,6 +149,21 @@ const RECIPES: Recipe[] = [
     nutrition: { carbs: 28, fiber: 11 },
     filterTags: ["Mittagessen", "Viel Ballaststoffe", "Vegetarisch"],
     favorited: false,
+    ingredients: [
+      "150 g gekochte Linsen",
+      "50 g Feta",
+      "1/2 Salatgurke",
+      "1 kleine rote Zwiebel",
+      "1 EL Olivenöl",
+      "1 EL Essig",
+      "Salz, Pfeffer",
+    ],
+    steps: [
+      "Linsen abtropfen lassen und in eine Schüssel geben.",
+      "Gurke und Zwiebel klein würfeln und dazugeben.",
+      "Feta zerbröckeln und untermengen.",
+      "Mit Olivenöl, Essig, Salz und Pfeffer abschmecken.",
+    ],
   },
   {
     id: "4",
@@ -127,6 +174,20 @@ const RECIPES: Recipe[] = [
     nutrition: { carbs: 18, fiber: 6 },
     filterTags: ["Abendessen", "Low Carb", "Vegetarisch"],
     favorited: false,
+    ingredients: [
+      "2 Zucchini",
+      "200 g passierte Tomaten",
+      "1 Knoblauchzehe",
+      "1 EL Olivenöl",
+      "Frisches Basilikum",
+      "Salz, Pfeffer",
+    ],
+    steps: [
+      "Zucchini mit einem Spiralschneider zu \"Nudeln\" verarbeiten.",
+      "Knoblauch in Olivenöl andünsten, passierte Tomaten dazugeben und köcheln lassen.",
+      "Mit Salz, Pfeffer und Basilikum würzen.",
+      "Zucchini-Nudeln kurz in der Sauce erwärmen und servieren.",
+    ],
   },
   {
     id: "5",
@@ -137,6 +198,18 @@ const RECIPES: Recipe[] = [
     nutrition: { carbs: 20, sugar: 14 },
     filterTags: ["Snacks", "Schnell", "Vegetarisch"],
     favorited: true,
+    ingredients: [
+      "200 g Magerquark",
+      "1 Apfel",
+      "1/2 TL Zimt",
+      "1 TL Honig (optional)",
+    ],
+    steps: [
+      "Apfel waschen, entkernen und fein raspeln oder würfeln.",
+      "Quark mit Zimt verrühren.",
+      "Apfelstücke unterheben.",
+      "Nach Belieben mit Honig süßen.",
+    ],
   },
 ];
 
@@ -532,6 +605,44 @@ function RecipeDetailModal({
             </div>
           )}
 
+          {/* Ingredients */}
+          {recipe.ingredients && recipe.ingredients.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-800 mb-2">Zutaten</p>
+              <ul className="space-y-1.5">
+                {recipe.ingredients.map((ing, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                      style={{ backgroundColor: cornflower }}
+                    />
+                    {ing}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Steps */}
+          {recipe.steps && recipe.steps.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-800 mb-2">Zubereitung</p>
+              <ol className="space-y-3">
+                {recipe.steps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0 mt-0.5"
+                      style={{ backgroundColor: cornflower }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="leading-relaxed">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           {/* Tags */}
           {recipe.filterTags.length > 0 && (
             <div>
@@ -567,6 +678,8 @@ interface NewRecipeForm {
   calories: string;
   protein: string;
   tags: FilterChip[];
+  ingredients: string[];
+  steps: string[];
 }
 
 const EMPTY_FORM: NewRecipeForm = {
@@ -580,6 +693,8 @@ const EMPTY_FORM: NewRecipeForm = {
   calories: "",
   protein: "",
   tags: [],
+  ingredients: [""],
+  steps: [""],
 };
 
 function AddRecipeModal({
@@ -600,6 +715,8 @@ function AddRecipeModal({
       protein?: number;
     };
     filterTags: FilterChip[];
+    ingredients: string[];
+    steps: string[];
   }) => Promise<void>;
 }) {
   const [form, setForm] = useState<NewRecipeForm>(EMPTY_FORM);
@@ -611,6 +728,29 @@ function AddRecipeModal({
       ...f,
       tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
     }));
+  };
+
+  const updateListItem = (
+    field: "ingredients" | "steps",
+    index: number,
+    value: string
+  ) => {
+    setForm((f) => {
+      const list = [...f[field]];
+      list[index] = value;
+      return { ...f, [field]: list };
+    });
+  };
+
+  const addListItem = (field: "ingredients" | "steps") => {
+    setForm((f) => ({ ...f, [field]: [...f[field], ""] }));
+  };
+
+  const removeListItem = (field: "ingredients" | "steps", index: number) => {
+    setForm((f) => {
+      const list = f[field].filter((_, i) => i !== index);
+      return { ...f, [field]: list.length > 0 ? list : [""] };
+    });
   };
 
   const handleSubmit = async () => {
@@ -640,6 +780,8 @@ function AddRecipeModal({
           protein: form.protein ? Number(form.protein) : undefined,
         },
         filterTags: form.tags,
+        ingredients: form.ingredients.map((i) => i.trim()).filter(Boolean),
+        steps: form.steps.map((s) => s.trim()).filter(Boolean),
       });
     } catch (err) {
       setError(
@@ -797,6 +939,79 @@ function AddRecipeModal({
             </div>
           </div>
 
+          {/* Ingredients */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Zutaten</label>
+            <div className="space-y-2">
+              {form.ingredients.map((ing, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    value={ing}
+                    onChange={(e) => updateListItem("ingredients", i, e.target.value)}
+                    placeholder={`z. B. 150 g Hähnchenbrust`}
+                    className="rounded-xl border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeListItem("ingredients", i)}
+                    className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => addListItem("ingredients")}
+                className="inline-flex items-center gap-1 text-xs font-medium"
+                style={{ color: cornflower }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Zutat hinzufügen
+              </button>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Zubereitungsschritte</label>
+            <div className="space-y-2">
+              {form.steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
+                    style={{ backgroundColor: cornflower }}
+                  >
+                    {i + 1}
+                  </span>
+                  <textarea
+                    value={step}
+                    onChange={(e) => updateListItem("steps", i, e.target.value)}
+                    placeholder={`z. B. Zutaten in der Pfanne anbraten…`}
+                    rows={1}
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeListItem("steps", i)}
+                    className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => addListItem("steps")}
+                className="inline-flex items-center gap-1 text-xs font-medium"
+                style={{ color: cornflower }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Schritt hinzufügen
+              </button>
+            </div>
+          </div>
+
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <button
@@ -851,6 +1066,8 @@ export function Recipes() {
       protein?: number;
     };
     filterTags: FilterChip[];
+    ingredients: string[];
+    steps: string[];
   }) => {
     const saved = await createRecipe(recipe);
     setRecipes((prev) => [...prev, { ...saved, isMine: true }]);
