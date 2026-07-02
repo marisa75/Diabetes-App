@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { getRecipes } from "../../api/recipes";
+import { getRecipes, createRecipe } from "../../api/recipes";
 import {
   Search,
   Clock,
@@ -38,6 +38,19 @@ const FILTER_CHIPS = [
 
 type FilterChip = (typeof FILTER_CHIPS)[number];
 
+// Auswählbare Tags im "Eigenes Rezept hinzufügen"-Formular (ohne "Alle")
+const SELECTABLE_TAGS = FILTER_CHIPS.filter((c) => c !== "Alle") as Exclude<
+  FilterChip,
+  "Alle"
+>[];
+
+const CATEGORY_OPTIONS = [
+  "Frühstück",
+  "Mittagessen",
+  "Abendessen",
+  "Snack",
+] as const;
+
 const VIEW_TABS = ["Alle Rezepte", "Meine Rezepte", "Favoriten"] as const;
 type ViewTab = (typeof VIEW_TABS)[number];
 
@@ -64,6 +77,7 @@ interface Recipe {
   filterTags: FilterChip[];
   featured?: boolean;
   favorited?: boolean;
+  isMine?: boolean;
 }
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
@@ -175,7 +189,13 @@ function NutritionPill({
 
 // ─── Featured Card ─────────────────────────────────────────────────────────────
 
-function FeaturedCard({ recipe }: { recipe: Recipe }) {
+function FeaturedCard({
+  recipe,
+  onDetails,
+}: {
+  recipe: Recipe;
+  onDetails: (recipe: Recipe) => void;
+}) {
   const [fav, setFav] = useState(recipe.favorited);
 
   return (
@@ -237,6 +257,7 @@ function FeaturedCard({ recipe }: { recipe: Recipe }) {
         )}
 
         <button
+          onClick={() => onDetails(recipe)}
           className="w-full py-2.5 rounded-xl bg-white text-sm font-medium transition-opacity hover:opacity-90 active:scale-[0.98]"
           style={{ color: cornflower }}
         >
@@ -249,7 +270,15 @@ function FeaturedCard({ recipe }: { recipe: Recipe }) {
 
 // ─── Recipe Card ───────────────────────────────────────────────────────────────
 
-function RecipeCard({ recipe, index }: { recipe: Recipe; index: number }) {
+function RecipeCard({
+  recipe,
+  index,
+  onDetails,
+}: {
+  recipe: Recipe;
+  index: number;
+  onDetails: (recipe: Recipe) => void;
+}) {
   const [fav, setFav] = useState(recipe.favorited);
 
   return (
@@ -267,6 +296,11 @@ function RecipeCard({ recipe, index }: { recipe: Recipe; index: number }) {
             <Clock className="w-3 h-3" />
             {recipe.time}
           </span>
+          {recipe.isMine && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-500">
+              Eigenes Rezept
+            </span>
+          )}
         </div>
         <button
           onClick={() => setFav((f) => !f)}
@@ -319,6 +353,7 @@ function RecipeCard({ recipe, index }: { recipe: Recipe; index: number }) {
       {/* Footer */}
       <div className="flex items-center justify-end pt-1">
         <button
+          onClick={() => onDetails(recipe)}
           className="inline-flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-xl transition-opacity hover:opacity-80"
           style={{ backgroundColor: `${cornflower}15`, color: cornflower }}
         >
@@ -359,7 +394,7 @@ function DiabetesFocusCard() {
 
 // ─── Add Recipe Card ───────────────────────────────────────────────────────────
 
-function AddRecipeCard() {
+function AddRecipeCard({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4 items-start">
       <div
@@ -375,6 +410,7 @@ function AddRecipeCard() {
           Portion.
         </p>
         <button
+          onClick={onAdd}
           className="text-xs font-medium px-3 py-1.5 rounded-xl transition-opacity hover:opacity-80"
           style={{ backgroundColor: `${cornflower}15`, color: cornflower }}
         >
@@ -417,6 +453,366 @@ function EmptyState({ onClear }: { onClear: () => void }) {
   );
 }
 
+// ─── Recipe Detail Modal ────────────────────────────────────────────────────────
+
+function RecipeDetailModal({
+  recipe,
+  onClose,
+}: {
+  recipe: Recipe;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto"
+      >
+        {/* Header image / gradient */}
+        <div
+          className="px-5 pt-5 pb-4 sticky top-0 z-10"
+          style={{ background: `linear-gradient(135deg, #4A7FD4 0%, #6495ED 60%, #89B4F7 100%)` }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <CategoryBadge category={recipe.category} />
+                <span className="inline-flex items-center gap-1 text-xs text-blue-100">
+                  <Clock className="w-3 h-3" />
+                  {recipe.time}
+                </span>
+                {recipe.difficulty && (
+                  <span className="text-xs text-blue-100 bg-white/20 px-2 py-0.5 rounded-full">
+                    {recipe.difficulty}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-white leading-snug">{recipe.title}</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+          <p className="text-gray-600 text-sm leading-relaxed">{recipe.description}</p>
+
+          {/* Nutrition */}
+          <div>
+            <p className="text-sm font-medium text-gray-800 mb-2">Nährwerte pro Portion</p>
+            <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-wrap justify-between gap-3">
+              <NutritionPill icon={Wheat}    value={recipe.nutrition.carbs}   unit="g"    label="Kohlenhydrate" color={cornflower} />
+              {recipe.nutrition.fiber    !== undefined && <NutritionPill icon={Droplets} value={recipe.nutrition.fiber}   unit="g"    label="Ballaststoffe" color="#10B981" />}
+              {recipe.nutrition.sugar    !== undefined && <NutritionPill icon={Droplets} value={recipe.nutrition.sugar}   unit="g"    label="Zucker"        color="#EC4899" />}
+              {recipe.nutrition.protein  !== undefined && <NutritionPill icon={Dumbbell} value={recipe.nutrition.protein} unit="g"    label="Eiweiß"        color="#6366F1" />}
+              {recipe.nutrition.fat      !== undefined && <NutritionPill icon={Droplets} value={recipe.nutrition.fat}     unit="g"    label="Fett"          color="#F59E0B" />}
+              {recipe.nutrition.calories !== undefined && <NutritionPill icon={Flame}    value={recipe.nutrition.calories} unit=" kcal" label="Kalorien"     color="#EF4444" />}
+            </div>
+          </div>
+
+          {/* Diabetes tip */}
+          {recipe.diabetesTip && (
+            <div className="flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: `${cornflower}10` }}>
+              <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: cornflower }} />
+              <p className="text-xs text-gray-600 leading-relaxed">{recipe.diabetesTip}</p>
+            </div>
+          )}
+
+          {/* Tags */}
+          {recipe.filterTags.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-800 mb-2">Passt zu</p>
+              <div className="flex flex-wrap gap-2">
+                {recipe.filterTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Add Recipe Modal ────────────────────────────────────────────────────────────
+
+interface NewRecipeForm {
+  title: string;
+  category: (typeof CATEGORY_OPTIONS)[number];
+  time: string;
+  description: string;
+  carbs: string;
+  fiber: string;
+  sugar: string;
+  calories: string;
+  protein: string;
+  tags: FilterChip[];
+}
+
+const EMPTY_FORM: NewRecipeForm = {
+  title: "",
+  category: "Mittagessen",
+  time: "",
+  description: "",
+  carbs: "",
+  fiber: "",
+  sugar: "",
+  calories: "",
+  protein: "",
+  tags: [],
+};
+
+function AddRecipeModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (recipe: {
+    title: string;
+    category: string;
+    time: string;
+    description: string;
+    nutrition: {
+      carbs: number;
+      fiber?: number;
+      sugar?: number;
+      calories?: number;
+      protein?: number;
+    };
+    filterTags: FilterChip[];
+  }) => Promise<void>;
+}) {
+  const [form, setForm] = useState<NewRecipeForm>(EMPTY_FORM);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const toggleTag = (tag: FilterChip) => {
+    setForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      setError("Bitte gib einen Titel ein.");
+      return;
+    }
+    if (!form.carbs.trim() || isNaN(Number(form.carbs))) {
+      setError("Bitte gib Kohlenhydrate (in g) als Zahl ein.");
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+
+    try {
+      await onSave({
+        title: form.title.trim(),
+        category: form.category,
+        time: form.time.trim() || "—",
+        description: form.description.trim() || "Eigenes Rezept.",
+        nutrition: {
+          carbs: Number(form.carbs),
+          fiber: form.fiber ? Number(form.fiber) : undefined,
+          sugar: form.sugar ? Number(form.sugar) : undefined,
+          calories: form.calories ? Number(form.calories) : undefined,
+          protein: form.protein ? Number(form.protein) : undefined,
+        },
+        filterTags: form.tags,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Rezept konnte nicht gespeichert werden."
+      );
+      setSaving(false);
+    }
+  };
+
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-y-auto"
+      >
+        {/* Header */}
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-gray-100 sticky top-0 bg-white z-10">
+          <h2 className="text-gray-900">Eigenes Rezept hinzufügen</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Title */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Titel *</label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              placeholder="z. B. Gemüse-Omelett"
+              className="rounded-xl border-gray-200"
+            />
+          </div>
+
+          {/* Category + time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Kategorie</label>
+              <select
+                value={form.category}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, category: e.target.value as NewRecipeForm["category"] }))
+                }
+                className="w-full h-9 rounded-xl border border-gray-200 bg-white px-3 text-sm"
+              >
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Zubereitungszeit</label>
+              <Input
+                value={form.time}
+                onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                placeholder="z. B. 15 Min."
+                className="rounded-xl border-gray-200"
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Beschreibung</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Kurze Beschreibung des Gerichts…"
+              rows={2}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none"
+            />
+          </div>
+
+          {/* Nutrition */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Nährwerte pro Portion
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                value={form.carbs}
+                onChange={(e) => setForm((f) => ({ ...f, carbs: e.target.value }))}
+                placeholder="Kohlenhydrate (g) *"
+                inputMode="numeric"
+                className="rounded-xl border-gray-200"
+              />
+              <Input
+                value={form.fiber}
+                onChange={(e) => setForm((f) => ({ ...f, fiber: e.target.value }))}
+                placeholder="Ballaststoffe (g)"
+                inputMode="numeric"
+                className="rounded-xl border-gray-200"
+              />
+              <Input
+                value={form.sugar}
+                onChange={(e) => setForm((f) => ({ ...f, sugar: e.target.value }))}
+                placeholder="Zucker (g)"
+                inputMode="numeric"
+                className="rounded-xl border-gray-200"
+              />
+              <Input
+                value={form.protein}
+                onChange={(e) => setForm((f) => ({ ...f, protein: e.target.value }))}
+                placeholder="Eiweiß (g)"
+                inputMode="numeric"
+                className="rounded-xl border-gray-200"
+              />
+              <Input
+                value={form.calories}
+                onChange={(e) => setForm((f) => ({ ...f, calories: e.target.value }))}
+                placeholder="Kalorien (kcal)"
+                inputMode="numeric"
+                className="rounded-xl border-gray-200 col-span-2"
+              />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">Tags</label>
+            <div className="flex flex-wrap gap-2">
+              {SELECTABLE_TAGS.map((tag) => {
+                const active = form.tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                      active ? "text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    )}
+                    style={active ? { backgroundColor: cornflower } : undefined}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="w-full py-2.5 rounded-xl text-white text-sm font-medium transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+            style={{ backgroundColor: cornflower }}
+          >
+            {saving ? "Wird gespeichert…" : "Rezept speichern"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export function Recipes() {
@@ -425,26 +821,49 @@ export function Recipes() {
   const [activeView, setActiveView] = useState<ViewTab>("Alle Rezepte");
 
   const [recipes, setRecipes] = useState<Recipe[]>(RECIPES);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
-useEffect(() => {
-  async function loadRecipes() {
-    try {
-      const data = await getRecipes();
-      setRecipes(data);
-    } catch (error) {
-      console.error(error);
+  useEffect(() => {
+    async function loadRecipes() {
+      try {
+        const data = await getRecipes();
+        // Backend liefert jetzt auch eigene, bereits gespeicherte Rezepte mit
+        setRecipes(data);
+      } catch (error) {
+        console.error(error);
+      }
     }
-  }
 
-  loadRecipes();
-}, []);
+    loadRecipes();
+  }, []);
+
+  const handleAddRecipe = async (recipe: {
+    title: string;
+    category: string;
+    time: string;
+    description: string;
+    nutrition: {
+      carbs: number;
+      fiber?: number;
+      sugar?: number;
+      calories?: number;
+      protein?: number;
+    };
+    filterTags: FilterChip[];
+  }) => {
+    const saved = await createRecipe(recipe);
+    setRecipes((prev) => [...prev, { ...saved, isMine: true }]);
+    setShowAddModal(false);
+    setActiveView("Meine Rezepte");
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
 
-    return recipes.filter((r) =>{
+    return recipes.filter((r) => {
       if (activeView === "Favoriten" && !r.favorited) return false;
-      if (activeView === "Meine Rezepte") return false; // empty for prototype
+      if (activeView === "Meine Rezepte" && !r.isMine) return false;
 
       const matchesSearch =
         !q ||
@@ -542,7 +961,7 @@ useEffect(() => {
       {/* Content */}
       <div className="max-w-lg mx-auto px-4 pt-5 pb-8 space-y-6">
         <AnimatePresence mode="wait">
-          {activeView === "Meine Rezepte" ? (
+          {activeView === "Meine Rezepte" && listRecipes.length === 0 && !featured ? (
             <motion.div
               key="mine"
               initial={{ opacity: 0 }}
@@ -562,6 +981,7 @@ useEffect(() => {
                 </p>
               </div>
               <button
+                onClick={() => setShowAddModal(true)}
                 className="text-sm font-medium px-4 py-2 rounded-xl text-white transition-opacity hover:opacity-90"
                 style={{ backgroundColor: cornflower }}
               >
@@ -578,7 +998,7 @@ useEffect(() => {
               className="space-y-6"
             >
               {/* Featured */}
-              {featured && <FeaturedCard recipe={featured} />}
+              {featured && <FeaturedCard recipe={featured} onDetails={setSelectedRecipe} />}
 
               {/* Diabetes Focus */}
               <DiabetesFocusCard />
@@ -588,14 +1008,23 @@ useEffect(() => {
                 <section className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h2 className="text-gray-800" style={{ fontSize: "1rem" }}>
-                      {activeView === "Favoriten" ? "Favoriten" : "Alle Rezepte"}
+                      {activeView === "Favoriten"
+                        ? "Favoriten"
+                        : activeView === "Meine Rezepte"
+                        ? "Meine Rezepte"
+                        : "Alle Rezepte"}
                     </h2>
                     <span className="text-xs text-gray-400">
                       {listRecipes.length} Rezepte
                     </span>
                   </div>
                   {listRecipes.map((recipe, i) => (
-                    <RecipeCard key={recipe.id} recipe={recipe} index={i} />
+                    <RecipeCard
+                      key={recipe.id}
+                      recipe={recipe}
+                      index={i}
+                      onDetails={setSelectedRecipe}
+                    />
                   ))}
                 </section>
               )}
@@ -614,11 +1043,27 @@ useEffect(() => {
               )}
 
               {/* Add recipe */}
-              <AddRecipeCard />
+              <AddRecipeCard onAdd={() => setShowAddModal(true)} />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {selectedRecipe && (
+          <RecipeDetailModal
+            recipe={selectedRecipe}
+            onClose={() => setSelectedRecipe(null)}
+          />
+        )}
+        {showAddModal && (
+          <AddRecipeModal
+            onClose={() => setShowAddModal(false)}
+            onSave={handleAddRecipe}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
