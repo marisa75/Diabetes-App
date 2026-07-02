@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
 import { getDexcomData } from "../../api/dexcom";
 import React from "react";
-import { User } from "lucide-react";
 import { GlucoseChart } from "./GlucoseChart";
 
 export function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Vorname aus dem gespeicherten Profil laden
+  const [vorname, setVorname] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("profileData");
+      if (raw) {
+        setVorname(JSON.parse(raw).vorname || "");
+      }
+    } catch (err) {
+      console.error("Profil konnte nicht geladen werden", err);
+    }
+  }, []);
   
   
 
@@ -154,12 +166,9 @@ const timeInRange =
           <div className="flex-1">
             <p className="text-gray-600 text-sm">{formatDate(currentTime)}</p>
             <p className="text-2xl font-semibold text-[#6495ED]">{formatTime(currentTime)}</p>
-            <p className="text-gray-700 mt-1">Hallo, User!</p>
+            <p className="text-gray-700 mt-1">Hallo, {vorname || "User"}!</p>
           </div>
-          <button className="bg-[#6495ED] text-white px-4 py-2 rounded-lg hover:bg-[#5885DC] transition-colors">
-            <User className="w-5 h-6" />
-          </button>
-              {/* Verbindung zu Dexcom */}
+          {/* Verbindung zu Dexcom */}
       <button onClick={() => {
     window.location.href =
       "http://localhost:3001/auth/dexcom";

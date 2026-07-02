@@ -6,6 +6,7 @@ import { Forum } from "./components/Forum";
 import { Recipes } from "./components/Recipes";
 import { Events } from "./components/Events";
 import { NutritionScan } from "./components/NutritionScan";
+import { Profile } from "./components/Profile";
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: "rezepte", Component: Recipes },
       { path: "events", Component: Events },
       { path: "naehrwert-scan", Component: NutritionScan },
+      { path: "profil", Component: Profile },
       { path: "callback", Component: Callback },
     ],
   },

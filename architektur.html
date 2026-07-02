@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diabetes-App · Architektur</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-soft: #121933;
+    --panel: #161f3d;
+    --panel-2: #1c2749;
+    --border: #2a3763;
+    --text: #e6ecff;
+    --muted: #9fb0d8;
+    --accent: #6495ED;      /* App-Primärfarbe */
+    --accent-2: #7ee0c0;
+    --warn: #f5b971;
+    --pink: #f28ab2;
+    --purple: #b79cff;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1a2450 0%, transparent 60%),
+                radial-gradient(900px 500px at -10% 10%, #182a4a 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* Header */
+  header {
+    padding: 64px 0 40px;
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    background: rgba(126,224,192,.06);
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 48px);
+    margin: 18px 0 8px;
+    letter-spacing: -.02em;
+  }
+  .subtitle { color: var(--muted); max-width: 640px; margin: 0 auto; font-size: 17px; }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 34px 0 10px;
+  }
+  .stat {
+    background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+  }
+  .stat .n { font-size: 26px; font-weight: 700; color: var(--text); }
+  .stat .l { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  /* Sections */
+  section { padding: 40px 0; }
+  .sec-title {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 22px;
+  }
+  .sec-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+  /* Layered diagram */
+  .layer {
+    background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .layer::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--tint, var(--accent));
+  }
+  .layer h3 { margin: 0 0 4px; font-size: 18px; }
+  .layer .meta { color: var(--muted); font-size: 13.5px; margin-bottom: 16px; }
+  .layer .tag {
+    font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px 8px; margin-left: 8px; vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  .node {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .node:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .node .t { font-weight: 600; font-size: 14.5px; display:flex; align-items:center; gap:8px; }
+  .node .d { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+  .node .path { color: var(--accent); font-size: 11.5px; margin-top: 8px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; word-break: break-all; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+
+  .flow-arrow {
+    text-align: center; color: var(--muted); font-size: 22px; margin: -4px 0 14px;
+  }
+
+  /* Endpoints table */
+  .eps { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .eps th, .eps td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .eps th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .eps td.m { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--accent); white-space: nowrap; }
+  .method { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+  .m-get { background: rgba(126,224,192,.15); color: var(--accent-2); }
+  .m-post { background: rgba(100,149,237,.18); color: #9fc0ff; }
+
+  /* Flow steps */
+  .flows { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .flowcard {
+    background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .flowcard h4 { margin: 0 0 14px; font-size: 15px; display:flex; align-items:center; gap:8px; }
+  .step { display: flex; gap: 12px; margin-bottom: 12px; }
+  .step .num {
+    flex: 0 0 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #06122e; font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step .txt { font-size: 13px; color: var(--muted); }
+  .step .txt b { color: var(--text); font-weight: 600; }
+  code.k { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--accent-2); }
+
+  /* Tech chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; font-size: 13px;
+  }
+  .chip b { color: var(--text); } .chip span { color: var(--muted); }
+
+  footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 760px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .flows { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="badge">System-Architektur</span>
+    <h1>Diabetes-App</h1>
+    <p class="subtitle">
+      Eine React-Web-App zur Diabetes-Unterstützung: Live-Glukosewerte (Dexcom CGM),
+      KI-gestützter Nährwert-Scan (LogMeal), Rezepte, Events und Community-Forum.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><div class="n">React 18</div><div class="l">+ Vite &amp; TypeScript</div></div>
+      <div class="stat"><div class="n">Express 5</div><div class="l">Node.js Backend</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">externe APIs</div></div>
+      <div class="stat"><div class="n">6</div><div class="l">Views / Routen</div></div>
+    </div>
+  </header>
+
+  <!-- ARCHITEKTUR-ÜBERBLICK -->
+  <section>
+    <div class="sec-title">Überblick · Schichten</div>
+
+    <!-- Frontend -->
+    <div class="layer" style="--tint: var(--accent)">
+      <h3>Frontend <span class="tag">Browser · SPA</span></h3>
+      <div class="meta">React 18 + Vite · React Router v7 · TailwindCSS 4 · Radix UI / shadcn · Recharts</div>
+      <div class="grid">
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent)"></span>Einstieg</div>
+          <div class="d">Bootstrap &amp; Router-Provider</div>
+          <div class="path">main.tsx → App.tsx → routes.tsx</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent)"></span>Layout</div>
+          <div class="d">Rahmen mit Bottom-Navigation &amp; &lt;Outlet /&gt;</div>
+          <div class="path">components/Layout.tsx</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent-2)"></span>API-Layer</div>
+          <div class="d">fetch-Wrapper zum Backend</div>
+          <div class="path">api/dexcom.ts · api/recipes.ts</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--purple)"></span>UI-Kit</div>
+          <div class="d">~50 wiederverwendbare Komponenten</div>
+          <div class="path">components/ui/*</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">↓ &nbsp; HTTP / JSON &nbsp; (localhost:3001) &nbsp; ↓</div>
+
+    <!-- Backend -->
+    <div class="layer" style="--tint: var(--accent-2)">
+      <h3>Backend <span class="tag">Node.js · Express 5</span></h3>
+      <div class="meta">API-Gateway &amp; Proxy · CORS · JSON (bis 50 MB) · verwaltet OAuth-Token · index.js</div>
+      <div class="grid">
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent-2)"></span>dexcomRoutes</div>
+          <div class="d">OAuth-Login, Token-Tausch &amp; Glukosewerte</div>
+          <div class="path">routes/dexcomRoutes.js</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent-2)"></span>recipeRoutes</div>
+          <div class="d">Rezeptliste (statische Daten)</div>
+          <div class="path">routes/recipeRoutes.js</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--accent-2)"></span>logmealRoutes</div>
+          <div class="d">Foto-Analyse → Nährwerte / BE</div>
+          <div class="path">routes/logmealRoutes.js</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">↓ &nbsp; HTTPS &nbsp; (Bearer-Token · Server-zu-Server) &nbsp; ↓</div>
+
+    <!-- External -->
+    <div class="layer" style="--tint: var(--warn)">
+      <h3>Externe Dienste <span class="tag">Drittanbieter-APIs</span></h3>
+      <div class="meta">Werden ausschließlich vom Backend angesprochen — API-Keys bleiben serverseitig.</div>
+      <div class="grid">
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--warn)"></span>Dexcom Sandbox API</div>
+          <div class="d">CGM-Glukosedaten via OAuth 2.0 (EGVs, Trend, Verlauf)</div>
+          <div class="path">sandbox-api.dexcom.com</div>
+        </div>
+        <div class="node">
+          <div class="t"><span class="dot" style="background:var(--warn)"></span>LogMeal API</div>
+          <div class="d">Bild-Segmentierung + Nährwert-Erkennung</div>
+          <div class="path">api.logmeal.com</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEWS / ROUTEN -->
+  <section>
+    <div class="sec-title">Views &amp; Routen</div>
+    <div class="grid">
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--accent)"></span>Home <span class="tag">/</span></div>
+        <div class="d">Dashboard mit Live-Glukose &amp; Chart (Dexcom)</div>
+        <div class="path">Home.tsx · GlucoseChart.tsx</div>
+      </div>
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--pink)"></span>Forum <span class="tag">/forum</span></div>
+        <div class="d">Community-Austausch</div>
+        <div class="path">Forum.tsx</div>
+      </div>
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--accent-2)"></span>Rezepte <span class="tag">/rezepte</span></div>
+        <div class="d">Diabetes-freundliche Rezepte mit Filter</div>
+        <div class="path">Recipes.tsx</div>
+      </div>
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--purple)"></span>Events <span class="tag">/events</span></div>
+        <div class="d">Termine &amp; Veranstaltungen</div>
+        <div class="path">Events.tsx</div>
+      </div>
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--warn)"></span>Nährwert-Scan <span class="tag">/naehrwert-scan</span></div>
+        <div class="d">Foto-/Barcode-Analyse einer Mahlzeit</div>
+        <div class="path">NutritionScan.tsx · @zxing</div>
+      </div>
+      <div class="node">
+        <div class="t"><span class="dot" style="background:var(--muted)"></span>Callback <span class="tag">/callback</span></div>
+        <div class="d">Verarbeitet Dexcom-OAuth-Redirect</div>
+        <div class="path">Callback.tsx</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API ENDPOINTS -->
+  <section>
+    <div class="sec-title">Backend-Endpunkte</div>
+    <div class="layer" style="--tint: var(--accent-2)">
+      <table class="eps">
+        <thead>
+          <tr><th>Methode</th><th>Pfad</th><th>Beschreibung</th><th>Ziel</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method m-get">GET</span></td>
+            <td class="m">/auth/dexcom</td>
+            <td>Weiterleitung zur Dexcom-Login-Seite (OAuth-Start)</td>
+            <td>Dexcom</td>
+          </tr>
+          <tr>
+            <td><span class="method m-post">POST</span></td>
+            <td class="m">/auth/dexcom/token</td>
+            <td>Autorisierungs-Code → Access-Token (serverseitig gespeichert)</td>
+            <td>Dexcom</td>
+          </tr>
+          <tr>
+            <td><span class="method m-get">GET</span></td>
+            <td class="m">/api/glucose/latest</td>
+            <td>Neuester Glukosewert, Trend &amp; 24h-Verlauf</td>
+            <td>Dexcom</td>
+          </tr>
+          <tr>
+            <td><span class="method m-get">GET</span></td>
+            <td class="m">/api/recipes</td>
+            <td>Liste der Rezepte inkl. Nährwerte &amp; Tags</td>
+            <td>lokal</td>
+          </tr>
+          <tr>
+            <td><span class="method m-post">POST</span></td>
+            <td class="m">/api/analyze-food</td>
+            <td>Bild (Base64) → Segmentierung + Nährwerte + BE</td>
+            <td>LogMeal</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- DATENFLÜSSE -->
+  <section>
+    <div class="sec-title">Wichtigste Datenflüsse</div>
+    <div class="flows">
+      <div class="flowcard">
+        <h4><span class="dot" style="background:var(--accent)"></span>Dexcom-Anbindung &amp; Glukose</h4>
+        <div class="step"><div class="num">1</div><div class="txt"><b>Home</b> leitet auf <code class="k">/auth/dexcom</code> weiter.</div></div>
+        <div class="step"><div class="num">2</div><div class="txt">Backend redirected zur <b>Dexcom-Login-Seite</b>.</div></div>
+        <div class="step"><div class="num">3</div><div class="txt">Dexcom ruft <code class="k">/callback</code> mit <b>code</b> auf.</div></div>
+        <div class="step"><div class="num">4</div><div class="txt"><b>Callback.tsx</b> sendet den Code an <code class="k">/auth/dexcom/token</code>.</div></div>
+        <div class="step"><div class="num">5</div><div class="txt">Backend tauscht ihn gegen ein <b>Access-Token</b> und speichert es.</div></div>
+        <div class="step"><div class="num">6</div><div class="txt"><b>Home</b> lädt Werte über <code class="k">/api/glucose/latest</code> → <b>GlucoseChart</b>.</div></div>
+      </div>
+
+      <div class="flowcard">
+        <h4><span class="dot" style="background:var(--warn)"></span>Nährwert-Scan (Foto → BE)</h4>
+        <div class="step"><div class="num">1</div><div class="txt"><b>NutritionScan</b> nimmt Foto auf (Kamera / Barcode via @zxing).</div></div>
+        <div class="step"><div class="num">2</div><div class="txt">Bild als <b>Base64</b> an <code class="k">/api/analyze-food</code>.</div></div>
+        <div class="step"><div class="num">3</div><div class="txt">Backend sendet es an <b>LogMeal</b> (Segmentierung).</div></div>
+        <div class="step"><div class="num">4</div><div class="txt">Abfrage von <b>Nährwerten &amp; Zutaten</b> zur erkannten Mahlzeit.</div></div>
+        <div class="step"><div class="num">5</div><div class="txt">Backend berechnet <b>Kohlenhydrate, Zucker, Ballaststoffe &amp; BE</b>.</div></div>
+        <div class="step"><div class="num">6</div><div class="txt">Aufbereitetes JSON zurück an die App-Ansicht.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section>
+    <div class="sec-title">Technologie-Stack</div>
+    <div class="chips">
+      <div class="chip"><b>React 18</b> <span>· UI</span></div>
+      <div class="chip"><b>TypeScript</b></div>
+      <div class="chip"><b>Vite 6</b> <span>· Build/Dev</span></div>
+      <div class="chip"><b>React Router 7</b></div>
+      <div class="chip"><b>Tailwind CSS 4</b></div>
+      <div class="chip"><b>Radix UI / shadcn</b></div>
+      <div class="chip"><b>Recharts</b> <span>· Charts</span></div>
+      <div class="chip"><b>Motion</b> <span>· Animation</span></div>
+      <div class="chip"><b>@zxing/library</b> <span>· Barcode</span></div>
+      <div class="chip"><b>Lucide</b> <span>· Icons</span></div>
+      <div class="chip"><b>Node.js + Express 5</b></div>
+      <div class="chip"><b>Axios</b> <span>· HTTP</span></div>
+      <div class="chip"><b>Dexcom API</b> <span>· CGM</span></div>
+      <div class="chip"><b>LogMeal API</b> <span>· Vision</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Automatisch aus dem Quellcode abgeleitet · Diabetes-App Architektur-Übersicht
+  </footer>
+
+</div>
+</body>
+</html>

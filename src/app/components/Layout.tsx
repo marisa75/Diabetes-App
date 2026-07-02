@@ -1,6 +1,7 @@
-import React from "react";
-import { Outlet, NavLink } from "react-router";
+import React, { useEffect, useState } from "react";
+import { Outlet, NavLink, useLocation } from "react-router";
 import { Home, MessageCircle, UtensilsCrossed, Calendar, ScanBarcode } from "lucide-react";
+import { getProfileAvatar } from "../lib/profileAvatar";
 
 export function Layout() {
   const navItems = [
@@ -10,6 +11,14 @@ export function Layout() {
     { path: "/events", label: "Events", icon: Calendar },
     { path: "/naehrwert-scan", label: "Nährwert-Scan", icon: ScanBarcode },
   ];
+
+  // Avatar für den Profil-Button. Bei jedem Routenwechsel neu einlesen, damit
+  // Änderungen am Profil (Bild/Name) in der Fußleiste sichtbar werden.
+  const location = useLocation();
+  const [avatar, setAvatar] = useState(getProfileAvatar);
+  useEffect(() => {
+    setAvatar(getProfileAvatar());
+  }, [location.pathname]);
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -36,6 +45,42 @@ export function Layout() {
               <span className="text-xs">{item.label}</span>
             </NavLink>
           ))}
+
+          {/* Profil – Avatar als Button */}
+          <NavLink
+            to="/profil"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                isActive ? "text-[#6495ED]" : "text-gray-500"
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`w-7 h-7 mb-1 rounded-full overflow-hidden flex items-center justify-center ${
+                    isActive ? "ring-2 ring-[#6495ED]" : ""
+                  }`}
+                >
+                  {avatar.avatar ? (
+                    <img
+                      src={avatar.avatar}
+                      alt="Profil"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className="flex items-center justify-center w-full h-full text-xs font-semibold text-white select-none"
+                      style={{ backgroundColor: avatar.color }}
+                    >
+                      {avatar.initial}
+                    </span>
+                  )}
+                </span>
+                <span className="text-xs">Profil</span>
+              </>
+            )}
+          </NavLink>
         </div>
       </nav>
     </div>
