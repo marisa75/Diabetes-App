@@ -9,13 +9,6 @@ export function Home() {
   
   
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("de-DE", {
       weekday: "long",
@@ -45,6 +38,58 @@ export function Home() {
   const [glucoseHistory, setGlucoseHistory] = useState<
   { time: string; value: number }[]
 >([]);
+
+const averageGlucose =
+  glucoseHistory.length > 0
+    ? Math.round(
+        glucoseHistory.reduce(
+          (sum, point) => sum + point.value,
+          0
+        ) / glucoseHistory.length
+      )
+    : 0;
+
+const minGlucose =
+  glucoseHistory.length > 0
+    ? Math.min(
+        ...glucoseHistory.map((p) => p.value)
+      )
+    : 0;
+
+const maxGlucose =
+  glucoseHistory.length > 0
+    ? Math.max(
+        ...glucoseHistory.map((p) => p.value)
+      )
+    : 0;
+
+const timeInRange =
+  glucoseHistory.length > 0
+    ? Math.round(
+        (glucoseHistory.filter(
+          (p) => p.value >= 70 && p.value <= 180
+        ).length /
+          glucoseHistory.length) *
+          100
+      )
+    : 0;
+    
+    const lastMeasurement = sensorData.lastUpdate;
+
+    const [sensorConnected, setSensorConnected] = useState(false);
+    
+    const nextUpdate = (() => {
+      if (!sensorData.lastUpdate) return "--";
+    
+      const last = new Date(sensorData.lastUpdate);
+    
+      last.setMinutes(last.getMinutes() + 5);
+    
+      return last.toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    })();
 
 
   useEffect(() => {
@@ -78,8 +123,12 @@ export function Home() {
               value: entry.value,
             }))
         );
+        setSensorConnected(true);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        setSensorConnected(false);
+      });
   }, []);
 
   const trendMap: Record<string, string> = {
@@ -89,6 +138,13 @@ export function Home() {
     singleDown: "↘ Fallend",
     doubleDown: "↓ Stark fallend",
   };
+
+  const tirText =
+  timeInRange >= 70
+    ? "Sehr gut"
+    : timeInRange >= 50
+    ? "Gut"
+    : "Verbesserungswürdig";
 
   return (
     <div className="min-h-screen bg-white">
@@ -115,7 +171,26 @@ export function Home() {
         </div>
       </div>
 
+      <div className="flex gap-3">
 
+
+
+{/* Sensorstatus */}
+<div
+  className="flex-1 bg-[#6495ED] text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2"
+>
+  <div
+    className={`w-3 h-3 rounded-full ${
+      sensorConnected ? "bg-green-400" : "bg-red-400"
+    }`}
+  />
+
+  <span className="font-medium">
+    {sensorConnected ? "Sensor verbunden" : "Sensor nicht verbunden"}
+  </span>
+</div>
+
+</div>
 
       {/* Sensor Data */}
       <div className="p-4 max-w-screen-lg mx-auto">
@@ -141,73 +216,84 @@ export function Home() {
           </div>
         </div>
 
+
+
+<div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+
+
+
+
+
+
+
+
+<div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
+  <h3 className="mb-4 text-gray-800">
+    Tagesstatistik
+  </h3>
+
+  <div className="grid grid-cols-2 gap-4">
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Durchschnitt
+      </p>
+      <p className="text-2xl font-semibold">
+        {averageGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Time in Range
+      </p>
+      <p className="text-2xl font-semibold text-green-600">
+        {timeInRange}%
+      </p>
+      <p className="text-green-600 font-medium">
+    {tirText}
+  </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Minimum
+      </p>
+      <p className="text-2xl font-semibold">
+        {minGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+    <div>
+      <p className="text-gray-500 text-sm">
+        Maximum
+      </p>
+      <p className="text-2xl font-semibold">
+        {maxGlucose}
+      </p>
+      <p className="text-sm text-gray-500">
+        mg/dL
+      </p>
+    </div>
+
+  </div>
+</div>
+
+
+
+
         {/* Langzeit Glukoseerlauf */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
   <h3 className="mb-4">Glukoseverlauf</h3>
 
   <GlucoseChart data={glucoseHistory} />
 </div>
-
-        {/* Target Range Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
-          <h3 className="text-gray-600 mb-3">Zielbereich</h3>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-500 text-sm">Minimum</p>
-              <p className="text-2xl font-semibold text-gray-800">
-                {sensorData.targetRange.min} <span className="text-sm text-gray-500">mg/dL</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-500 text-sm">Maximum</p>
-              <p className="text-2xl font-semibold text-gray-800">
-                {sensorData.targetRange.max} <span className="text-sm text-gray-500">mg/dL</span>
-              </p>
-            </div>
-          </div>
-          {/* Visual Range Indicator */}
-          <div className="mt-4 h-2 bg-gray-100 rounded-full relative overflow-hidden">
-            <div
-              className="absolute h-full bg-[#6495ED] rounded-full"
-              style={{
-                left: `${((sensorData.targetRange.min - 0) / 300) * 100}%`,
-                width: `${((sensorData.targetRange.max - sensorData.targetRange.min) / 300) * 100}%`,
-              }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-              style={{
-                left: `${(sensorData.currentGlucose / 300) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Insulin and Battery Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Insulin Level */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <p className="text-gray-600 text-sm mb-2">Insulin</p>
-            <p className="text-3xl font-semibold text-gray-800">
-              {sensorData.insulinLevel}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">Einheiten</p>
-          </div>
-
-          {/* Battery Level */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <p className="text-gray-600 text-sm mb-2">Batterie</p>
-            <p className="text-3xl font-semibold text-gray-800">
-              {sensorData.batteryLevel}%
-            </p>
-            <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[#6495ED] rounded-full transition-all"
-                style={{ width: `${sensorData.batteryLevel}%` }}
-              />
-            </div>
-          </div>
-        </div>
 
 
         {/* Quick Actions */}
@@ -225,7 +311,7 @@ export function Home() {
       </div>
     </div>
 
-
+    </div>
 
   );
   
