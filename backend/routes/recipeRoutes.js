@@ -56,6 +56,7 @@ let recipes = [
     nutrition: {
       carbs: 32,
       fiber: 8,
+      sugar: 12,
     },
     filterTags: [
       "Frühstück",
@@ -88,6 +89,7 @@ let recipes = [
     nutrition: {
       carbs: 28,
       fiber: 11,
+      sugar: 3,
     },
     filterTags: [
       "Mittagessen",
@@ -121,6 +123,7 @@ let recipes = [
     nutrition: {
       carbs: 18,
       fiber: 6,
+      sugar: 6,
     },
     filterTags: [
       "Abendessen",

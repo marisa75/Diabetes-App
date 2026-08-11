@@ -24,6 +24,20 @@ import { cn } from "./ui/utils";
 
 const cornflower = "#6495ED";
 
+// Grenzwert für die "Low Sugar" / "High Sugar"-Einstufung pro Portion.
+// Quelle: Konsensuspapier der Deutschen Diabetes Gesellschaft (DDG),
+// Deutschen Adipositas-Gesellschaft (DAG) und Deutschen Gesellschaft für
+// Ernährung (DGE), Dez. 2018 – max. 10% der Tagesenergie bzw. 50g freier
+// Zucker/Tag (2.000 kcal). Auf ca. 4-5 Mahlzeiten/Tag umgerechnet ergibt
+// das eine praktische Richtgröße von ca. 10g Zucker pro Portion.
+const LOW_SUGAR_THRESHOLD = 10;
+
+function getSugarLevel(recipe: { nutrition: NutritionInfo }): "low" | "high" | null {
+  const sugar = recipe.nutrition.sugar;
+  if (sugar === undefined) return null;
+  return sugar <= LOW_SUGAR_THRESHOLD ? "low" : "high";
+}
+
 const FILTER_CHIPS = [
   "Alle",
   "Frühstück",
@@ -32,6 +46,7 @@ const FILTER_CHIPS = [
   "Snacks",
   "Low Carb",
   "Viel Ballaststoffe",
+  "Wenig Zucker",
   "Schnell",
   "Vegetarisch",
 ] as const;
@@ -39,10 +54,13 @@ const FILTER_CHIPS = [
 type FilterChip = (typeof FILTER_CHIPS)[number];
 
 // Auswählbare Tags im "Eigenes Rezept hinzufügen"-Formular (ohne "Alle")
-const SELECTABLE_TAGS = FILTER_CHIPS.filter((c) => c !== "Alle") as Exclude<
-  FilterChip,
-  "Alle"
->[];
+// Auswählbare Tags im "Eigenes Rezept hinzufügen"-Formular.
+// "Alle" und "Wenig Zucker" werden ausgeschlossen, da Letzteres automatisch
+// aus dem Zuckerwert berechnet wird (siehe getSugarLevel) und nicht manuell
+// gesetzt werden soll.
+const SELECTABLE_TAGS = FILTER_CHIPS.filter(
+  (c) => c !== "Alle" && c !== "Wenig Zucker"
+) as Exclude<FilterChip, "Alle" | "Wenig Zucker">[];
 
 const CATEGORY_OPTIONS = [
   "Frühstück",
@@ -123,7 +141,7 @@ const RECIPES: Recipe[] = [
     category: "Frühstück",
     time: "10 Min.",
     description: "Schnelles Frühstück mit Beeren, Joghurt und Haferflocken.",
-    nutrition: { carbs: 32, fiber: 8 },
+    nutrition: { carbs: 32, fiber: 8, sugar: 12 },
     filterTags: ["Frühstück", "Viel Ballaststoffe", "Schnell", "Vegetarisch"],
     favorited: true,
     ingredients: [
@@ -146,7 +164,7 @@ const RECIPES: Recipe[] = [
     category: "Mittagessen",
     time: "20 Min.",
     description: "Protein- und ballaststoffreicher Salat für lange Sättigung.",
-    nutrition: { carbs: 28, fiber: 11 },
+    nutrition: { carbs: 28, fiber: 11, sugar: 3 },
     filterTags: ["Mittagessen", "Viel Ballaststoffe", "Vegetarisch"],
     favorited: false,
     ingredients: [
@@ -171,7 +189,7 @@ const RECIPES: Recipe[] = [
     category: "Abendessen",
     time: "25 Min.",
     description: "Leichte Low-Carb-Alternative zu klassischer Pasta.",
-    nutrition: { carbs: 18, fiber: 6 },
+    nutrition: { carbs: 18, fiber: 6, sugar: 6 },
     filterTags: ["Abendessen", "Low Carb", "Vegetarisch"],
     favorited: false,
     ingredients: [
@@ -235,6 +253,26 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
+function SugarBadge({ level }: { level: "low" | "high" }) {
+  const isLow = level === "low";
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{
+        backgroundColor: isLow ? "#D1FAE5" : "#FFEDD5",
+        color: isLow ? "#059669" : "#C2410C",
+      }}
+      title={
+        isLow
+          ? `≤${LOW_SUGAR_THRESHOLD}g Zucker pro Portion`
+          : `>${LOW_SUGAR_THRESHOLD}g Zucker pro Portion`
+      }
+    >
+      {isLow ? "🟢 Wenig Zucker" : "🟠 Viel Zucker"}
+    </span>
+  );
+}
+
 function NutritionPill({
   icon: Icon,
   value,
@@ -270,6 +308,7 @@ function FeaturedCard({
   onDetails: (recipe: Recipe) => void;
 }) {
   const [fav, setFav] = useState(recipe.favorited);
+  const sugarLevel = getSugarLevel(recipe);
 
   return (
     <motion.div
@@ -308,6 +347,7 @@ function FeaturedCard({
               {recipe.difficulty}
             </span>
           )}
+          {sugarLevel && <SugarBadge level={sugarLevel} />}
         </div>
 
         <h2 className="text-white leading-snug">{recipe.title}</h2>
@@ -353,6 +393,7 @@ function RecipeCard({
   onDetails: (recipe: Recipe) => void;
 }) {
   const [fav, setFav] = useState(recipe.favorited);
+  const sugarLevel = getSugarLevel(recipe);
 
   return (
     <motion.div
@@ -369,6 +410,7 @@ function RecipeCard({
             <Clock className="w-3 h-3" />
             {recipe.time}
           </span>
+          {sugarLevel && <SugarBadge level={sugarLevel} />}
           {recipe.isMine && (
             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-500">
               Eigenes Rezept
@@ -409,14 +451,20 @@ function RecipeCard({
           <Wheat className="w-3 h-3" />
           {recipe.nutrition.carbs}g KH
         </div>
-        {recipe.nutrition.fiber && (
+        {recipe.nutrition.fiber !== undefined && (
           <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600">
             <Droplets className="w-3 h-3" />
             {recipe.nutrition.fiber}g Ballaststoffe
           </div>
         )}
-        {recipe.nutrition.sugar && !recipe.nutrition.fiber && (
-          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-pink-50 text-pink-500">
+        {recipe.nutrition.sugar !== undefined && (
+          <div
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium"
+            style={{
+              backgroundColor: sugarLevel === "low" ? "#D1FAE5" : "#FFEDD5",
+              color: sugarLevel === "low" ? "#059669" : "#C2410C",
+            }}
+          >
             <Droplets className="w-3 h-3" />
             {recipe.nutrition.sugar}g Zucker
           </div>
@@ -535,6 +583,8 @@ function RecipeDetailModal({
   recipe: Recipe;
   onClose: () => void;
 }) {
+  const sugarLevel = getSugarLevel(recipe);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -568,6 +618,7 @@ function RecipeDetailModal({
                     {recipe.difficulty}
                   </span>
                 )}
+                {sugarLevel && <SugarBadge level={sugarLevel} />}
               </div>
               <h2 className="text-white leading-snug">{recipe.title}</h2>
             </div>
@@ -1089,7 +1140,10 @@ export function Recipes() {
         r.category.toLowerCase().includes(q);
 
       const matchesFilter =
-        activeFilter === "Alle" || r.filterTags.includes(activeFilter);
+        activeFilter === "Alle" ||
+        (activeFilter === "Wenig Zucker"
+          ? getSugarLevel(r) === "low"
+          : r.filterTags.includes(activeFilter));
 
       return matchesSearch && matchesFilter;
     });
