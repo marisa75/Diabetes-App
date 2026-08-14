@@ -204,6 +204,25 @@ function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
     setScanning(false);
   }, []);
 
+  const takePhoto = useCallback(() => {
+  const video = videoRef.current;
+  if (!video) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d")?.drawImage(video, 0, 0);
+
+  const dataUrl = canvas.toDataURL("image/jpeg");
+
+  // Kamera stoppen
+  const stream = video.srcObject as MediaStream;
+  stream?.getTracks().forEach(t => t.stop());
+  setScanning(false);
+
+  onCapture(dataUrl);
+}, [onCapture]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -237,8 +256,15 @@ function UploadCard({ onCapture }: { onCapture: (src: string) => void }) {
             </div>
           </div>
           <p className="text-center text-sm text-gray-500">
-            Barcode vor die Kamera halten — wird automatisch erkannt
+            Barcode wird automatisch erkannt — oder Foto aufnehmen
           </p>
+          <button
+            onClick={takePhoto}
+            className="w-full py-3 rounded-2xl text-white text-sm font-medium"
+            style={{ backgroundColor: cornflower }}
+          >
+            📷 Foto aufnehmen
+          </button>
           <button
             onClick={stopCamera}
             className="w-full py-3 rounded-2xl bg-red-50 text-red-400 text-sm font-medium"
@@ -815,6 +841,38 @@ function ResultView({
 }) {
   const [nutrition, setNutrition] = useState(data);
   const [ingredients, setIngredients] = useState(data.ingredients);
+
+  const totalOriginalWeight = data.ingredients.reduce((sum, ing) => sum + ing.weight, 0);
+
+  const handleIngredientsUpdate = useCallback((updated: Ingredient[]) => {
+    setIngredients(updated);
+
+    // Neue Gesamtmenge berechnen
+    const newTotalWeight = updated.reduce((sum, ing) => sum + ing.weight, 0);
+    if (totalOriginalWeight === 0) return;
+
+    const scale = newTotalWeight / totalOriginalWeight;
+
+    // Nährwerte skalieren
+    setNutrition({
+      ...data,
+      portion: Math.round(newTotalWeight),
+      diabetes: {
+        carbs: Math.round(data.diabetes.carbs * scale * 10) / 10,
+        sugar: Math.round(data.diabetes.sugar * scale * 10) / 10,
+        fiber: Math.round(data.diabetes.fiber * scale * 10) / 10,
+        be: Math.round(data.diabetes.be * scale * 10) / 10,
+        calories: Math.round(data.diabetes.calories * scale),
+      },
+      full: {
+        protein: Math.round(data.full.protein * scale * 10) / 10,
+        fat: Math.round(data.full.fat * scale * 10) / 10,
+        saturatedFat: Math.round(data.full.saturatedFat * scale * 10) / 10,
+        sodium: Math.round(data.full.sodium * scale),
+        potassium: Math.round(data.full.potassium * scale),
+      },
+    });
+  }, [data, totalOriginalWeight]);
   const [showEdit, setShowEdit] = useState(false);
 
   return (
@@ -861,7 +919,7 @@ function ResultView({
         <DiabetesHighlightCard data={nutrition.diabetes} />
 
         {/* Ingredients */}
-        <IngredientsList ingredients={ingredients} onUpdate={setIngredients} />
+        <IngredientsList ingredients={ingredients} onUpdate={handleIngredientsUpdate} />
 
         {/* Full Nutrition Table */}
         <NutritionTable data={nutrition} />

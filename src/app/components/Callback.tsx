@@ -1,6 +1,6 @@
 import React from "react";
 import { useEffect } from "react";
-
+ 
 export default function Callback() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
