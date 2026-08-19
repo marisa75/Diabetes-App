@@ -995,6 +995,7 @@ function SavedConfirmation({ onReset }: { onReset: () => void }) {
 
 function HistoryView() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [editingEntry, setEditingEntry] = useState<HistoryEntry | null>(null);
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("scan-history") || "[]");
@@ -1005,6 +1006,15 @@ function HistoryView() {
     const updated = entries.filter(e => e.id !== id);
     setEntries(updated);
     localStorage.setItem("scan-history", JSON.stringify(updated));
+  };
+  const saveEdit = (updated: NutritionData) => {
+  if (!editingEntry) return;
+  const newEntries = entries.map(e =>
+    e.id === editingEntry.id ? { ...e, data: updated } : e
+  );
+  setEntries(newEntries);
+  localStorage.setItem("scan-history", JSON.stringify(newEntries));
+  setEditingEntry(null);
   };
 
   if (entries.length === 0) {
@@ -1020,46 +1030,65 @@ function HistoryView() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {entries.map((entry) => (
-        <div key={entry.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3">
-            {entry.imageSrc ? (
-              <img src={entry.imageSrc} className="w-12 h-12 rounded-xl object-cover shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${cornflower}15` }}>
-                <Camera className="w-6 h-6" style={{ color: cornflower }} />
+    <>
+      <div className="flex flex-col gap-3">
+        {entries.map((entry) => (
+          <div key={entry.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              {entry.imageSrc ? (
+                <img src={entry.imageSrc} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: `${cornflower}15` }}>
+                  <Camera className="w-6 h-6" style={{ color: cornflower }} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{entry.data.meal}</p>
+                <p className="text-xs text-gray-400">{entry.date}</p>
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">{entry.data.meal}</p>
-              <p className="text-xs text-gray-400">{entry.date}</p>
+              <button
+                onClick={() => setEditingEntry(entry)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center mr-1"
+                style={{ backgroundColor: `${cornflower}15` }}
+              >
+                <Pencil className="w-3 h-3" style={{ color: cornflower }} />
+              </button>
+              <button
+                onClick={() => deleteEntry(entry.id)}
+                className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"
+              >
+                <X className="w-3 h-3 text-red-400" />
+              </button>
             </div>
-            <button
-              onClick={() => deleteEntry(entry.id)}
-              className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"
-            >
-              <X className="w-3 h-3 text-red-400" />
-            </button>
+            <div className="border-t border-gray-100 px-4 py-2 grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <p className="text-xs text-gray-400">KH</p>
+                <p className="text-sm font-medium" style={{ color: cornflower }}>{entry.data.diabetes.carbs}g</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-400">BE</p>
+                <p className="text-sm font-medium text-purple-500">{entry.data.diabetes.be}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-400">kcal</p>
+                <p className="text-sm font-medium text-orange-500">{entry.data.diabetes.calories}</p>
+              </div>
+            </div>
           </div>
-          <div className="border-t border-gray-100 px-4 py-2 grid grid-cols-3 gap-2">
-            <div className="text-center">
-              <p className="text-xs text-gray-400">KH</p>
-              <p className="text-sm font-medium" style={{ color: cornflower }}>{entry.data.diabetes.carbs}g</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-400">BE</p>
-              <p className="text-sm font-medium text-purple-500">{entry.data.diabetes.be}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-400">kcal</p>
-              <p className="text-sm font-medium text-orange-500">{entry.data.diabetes.calories}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {editingEntry && (
+          <EditModal
+            data={editingEntry.data}
+            onClose={() => setEditingEntry(null)}
+            onSave={saveEdit}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -1069,7 +1098,7 @@ export function NutritionScan() {
   const [appState, setAppState] = useState<AppState>("upload");
   const [imageSrc, setImageSrc] = useState<string>("");
   const [resultData, setResultData] = useState<NutritionData>(MOCK_RESULT);
-  const [tab, setTab] = useState<"scan" | "history">("scan"); // ← neu
+  const [tab, setTab] = useState<"scan" | "history">("scan"); 
 
 const handleCapture = useCallback(async (src: string) => {
     setImageSrc(src);
@@ -1130,7 +1159,7 @@ const handleCapture = useCallback(async (src: string) => {
       setResultData({
         meal: data.meal,
         confidence: data.confidence,
-        portion: data.ingredients?.[0]?.weight ?? 100,
+        portion: data.ingredients?.reduce((sum: number, ing: any) => sum + (ing.weight ?? 0), 0) ?? 100,
         portionUnit: data.ingredients?.[0]?.unit ?? "g",
         diabetes: {
           carbs: data.diabetes?.carbs ?? 0,
