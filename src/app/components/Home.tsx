@@ -295,8 +295,8 @@ const tirText =
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white p-4 border-b border-gray-100">
-        <div className="flex justify-between items-start max-w-screen-lg mx-auto">
-          <div className="flex-1">
+        <div className="flex justify-between items-start gap-3 max-w-screen-lg mx-auto">
+          <div>
             <p className="text-gray-600 text-sm">{formatDate(currentTime)}</p>
             <p className="text-2xl font-semibold text-[#6495ED]">{formatTime(currentTime)}</p>
             <p className="text-gray-700 mt-1">Hallo, {vorname || "User"}!</p>
@@ -306,28 +306,26 @@ const tirText =
     window.location.href =
       "http://localhost:3001/auth/dexcom";
   }}
-  className="bg-[#6495ED] text-white px-4 py-2 rounded-lg hover:bg-[#5885DC] transition-colors"
+  className="shrink-0 bg-[#6495ED] text-white px-3 py-1.5 rounded-lg hover:bg-[#5885DC] transition-colors text-xs font-medium whitespace-nowrap"
 >
-  Mit Dexcom verbinden
+  Dexcom verbinden
 </button>
         </div>
       </div>
 
-      <div className="flex gap-3">
-
-
+      <div className="px-4 pt-3">
 
 {/* Sensorstatus */}
 <div
-  className="flex-1 bg-[#6495ED] text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2"
+  className="inline-flex items-center gap-2 bg-[#6495ED] text-white px-4 py-1.5 rounded-full"
 >
   <div
-    className={`w-3 h-3 rounded-full ${
+    className={`w-2.5 h-2.5 rounded-full ${
       sensorConnected ? "bg-green-400" : "bg-red-400"
     }`}
   />
 
-  <span className="font-medium">
+  <span className="text-sm font-medium">
     {sensorConnected ? "Sensor verbunden" : "Sensor nicht verbunden"}
   </span>
 </div>
@@ -441,14 +439,14 @@ const tirText =
         {/* Quick Actions */}
         <div className="mt-6 bg-[#6495ED]/5 border border-[#6495ED]/20 rounded-2xl p-4">
           <p className="text-sm text-gray-600 mb-3">Schnellaktionen</p>
-          <div className="flex gap-2 flex-wrap">
-            <button className="px-4 py-2 bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors">
+          <div className="flex gap-2">
+            <button className="flex-1 px-3 py-2 text-sm text-center bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors">
               Insulin verabreichen
             </button>
             <button
   type="button"
   onClick={() => setShowMeasurementForm(true)}
-  className="px-4 py-2 bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors"
+  className="flex-1 px-3 py-2 text-sm text-center bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors"
 >
   Messung eintragen
 </button>
