@@ -1,10 +1,58 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getDexcomData } from "../../api/dexcom";
 import React from "react";
 import { GlucoseChart } from "./GlucoseChart";
 
+type ManualMeasurement = {
+  id: string;
+  timestamp: string;
+  value: number;
+  reason: string;
+  activity: string;
+  notes: string;
+};
+
 export function Home() {
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const [manualMeasurements, setManualMeasurements] = useState<
+  ManualMeasurement[]
+>([]);
+
+const [showMeasurementForm, setShowMeasurementForm] = useState(false);
+
+const [measurementValue, setMeasurementValue] = useState("");
+
+const [measurementReason, setMeasurementReason] =
+  useState("Normal");
+
+const [measurementActivity, setMeasurementActivity] =
+  useState("");
+
+const [measurementNotes, setMeasurementNotes] =
+  useState("");
+
+const [measurementDate, setMeasurementDate] = useState(
+  new Date().toISOString().slice(0, 16)
+);
+
+useEffect(() => {
+  try {
+    const savedMeasurements =
+      localStorage.getItem("manualMeasurements");
+
+    if (savedMeasurements) {
+      setManualMeasurements(
+        JSON.parse(savedMeasurements)
+      );
+    }
+  } catch (err) {
+    console.error(
+      "Eigene Messungen konnten nicht geladen werden",
+      err
+    );
+  }
+}, []);
 
   // Vorname aus dem gespeicherten Profil laden
   const [vorname, setVorname] = useState("");
@@ -46,117 +94,202 @@ export function Home() {
     lastUpdate: "vor 2 Minuten",
     trend: "stabil",
   });
+  const [sensorConnected, setSensorConnected] = useState(false);
   
   const [glucoseHistory, setGlucoseHistory] = useState<
-  { time: string; value: number }[]
+  {
+    time: string;
+    value: number;
+    source?: "dexcom" | "manual";
+    reason?: string;
+    activity?: string;
+    notes?: string;
+  }[]
 >([]);
 
+useEffect(() => {
+  getDexcomData()
+    .then((data) => {
+      setSensorData((prev) => ({
+        ...prev,
+        currentGlucose: data.glucose,
+        trend: data.trend,
+        lastUpdate: new Date(data.timestamp).toLocaleTimeString(
+          "de-DE",
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          }
+        ),
+      }));
+
+      setGlucoseHistory(
+        data.history
+          .slice()
+          .reverse()
+          .map((entry: any) => ({
+            time: new Date(entry.time).toLocaleTimeString(
+              "de-DE",
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            ),
+            value: entry.value,
+          }))
+      );
+      setSensorConnected(true);
+    })
+    .catch((err) => {
+      console.error(err);
+      setSensorConnected(false);
+    });
+}, []);
+
+
+// ======================================================
+// DEXCOM + MANUELLE MESSUNGEN ZUSAMMENFÜHREN
+// ======================================================
+
+const combinedGlucoseHistory = useMemo(() => {
+  const dexcomPoints = glucoseHistory.map((point) => ({
+    ...point,
+    source: "dexcom" as const,
+  }));
+
+  const manualPoints = manualMeasurements.map((measurement) => ({
+    time: new Date(measurement.timestamp).toLocaleTimeString(
+      "de-DE",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    ),
+
+    value: measurement.value,
+
+    source: "manual" as const,
+
+    reason: measurement.reason,
+
+    activity: measurement.activity,
+
+    notes: measurement.notes,
+  }));
+
+  return [...dexcomPoints, ...manualPoints];
+}, [glucoseHistory, manualMeasurements]);
+
+
+// ======================================================
+// STATISTIK
+// ======================================================
+
 const averageGlucose =
-  glucoseHistory.length > 0
+  combinedGlucoseHistory.length > 0
     ? Math.round(
-        glucoseHistory.reduce(
+        combinedGlucoseHistory.reduce(
           (sum, point) => sum + point.value,
           0
-        ) / glucoseHistory.length
+        ) / combinedGlucoseHistory.length
       )
     : 0;
+
 
 const minGlucose =
-  glucoseHistory.length > 0
+  combinedGlucoseHistory.length > 0
     ? Math.min(
-        ...glucoseHistory.map((p) => p.value)
+        ...combinedGlucoseHistory.map((p) => p.value)
       )
     : 0;
+
 
 const maxGlucose =
-  glucoseHistory.length > 0
+  combinedGlucoseHistory.length > 0
     ? Math.max(
-        ...glucoseHistory.map((p) => p.value)
+        ...combinedGlucoseHistory.map((p) => p.value)
       )
     : 0;
 
+
+// ======================================================
+// TIME IN RANGE
+// Zielbereich: 70–180 mg/dL
+// ======================================================
+
 const timeInRange =
-  glucoseHistory.length > 0
+  combinedGlucoseHistory.length > 0
     ? Math.round(
-        (glucoseHistory.filter(
+        (combinedGlucoseHistory.filter(
           (p) => p.value >= 70 && p.value <= 180
         ).length /
-          glucoseHistory.length) *
+          combinedGlucoseHistory.length) *
           100
       )
     : 0;
-    
-    const lastMeasurement = sensorData.lastUpdate;
-
-    const [sensorConnected, setSensorConnected] = useState(false);
-    
-    const nextUpdate = (() => {
-      if (!sensorData.lastUpdate) return "--";
-    
-      const last = new Date(sensorData.lastUpdate);
-    
-      last.setMinutes(last.getMinutes() + 5);
-    
-      return last.toLocaleTimeString("de-DE", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    })();
 
 
-  useEffect(() => {
-    getDexcomData()
-      .then((data) => {
-        setSensorData((prev) => ({
-          ...prev,
-          currentGlucose: data.glucose,
-          trend: data.trend,
-          lastUpdate: new Date(data.timestamp).toLocaleTimeString(
-            "de-DE",
-            {
-              hour: "2-digit",
-              minute: "2-digit",
-            }
-          ),
-        }));
-        
-        setGlucoseHistory(
-          data.history
-            .slice()
-            .reverse()
-            .map((entry: any) => ({
-              time: new Date(entry.time).toLocaleTimeString(
-                "de-DE",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              ),
-              value: entry.value,
-            }))
-        );
-        setSensorConnected(true);
-      })
-      .catch((err) => {
-        console.error(err);
-        setSensorConnected(false);
-      });
-  }, []);
+// ======================================================
+// BEWERTUNG TIME IN RANGE
+// ======================================================
 
-  const trendMap: Record<string, string> = {
-    flat: "→ Stabil",
-    singleUp: "↗ Steigend",
-    doubleUp: "↑ Stark steigend",
-    singleDown: "↘ Fallend",
-    doubleDown: "↓ Stark fallend",
-  };
-
-  const tirText =
+const tirText =
   timeInRange >= 70
     ? "Sehr gut"
     : timeInRange >= 50
     ? "Gut"
     : "Verbesserungswürdig";
+
+    const handleSaveMeasurement = () => {
+      const value = Number(measurementValue);
+    
+      if (!value || value < 20 || value > 600) {
+        alert(
+          "Bitte gib einen gültigen Glukosewert zwischen 20 und 600 mg/dL ein."
+        );
+        return;
+      }
+    
+      const newMeasurement: ManualMeasurement = {
+        id: Date.now().toString(),
+        timestamp: new Date(measurementDate).toISOString(),
+        value,
+        reason: measurementReason,
+        activity: measurementActivity,
+        notes: measurementNotes,
+      };
+    
+      const updatedMeasurements = [
+        ...manualMeasurements,
+        newMeasurement,
+      ];
+    
+      setManualMeasurements(updatedMeasurements);
+    
+      localStorage.setItem(
+        "manualMeasurements",
+        JSON.stringify(updatedMeasurements)
+      );
+    
+      // Formular zurücksetzen
+      setMeasurementValue("");
+      setMeasurementReason("Normal");
+      setMeasurementActivity("");
+      setMeasurementNotes("");
+      setMeasurementDate(
+        new Date().toISOString().slice(0, 16)
+      );
+    
+      setShowMeasurementForm(false);
+    };
+
+    const trendMap: Record<string, string> = {
+      flat: "→ Stabil",
+      singleUp: "↗ Steigend",
+      doubleUp: "↑ Stark steigend",
+      singleDown: "↘ Fallend",
+      doubleDown: "↓ Stark fallend",
+    };
 
   return (
     <div className="min-h-screen bg-white">
@@ -301,7 +434,7 @@ const timeInRange =
         <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
   <h3 className="mb-4">Glukoseverlauf</h3>
 
-  <GlucoseChart data={glucoseHistory} />
+  <GlucoseChart data={combinedGlucoseHistory} />
 </div>
 
 
@@ -312,11 +445,123 @@ const timeInRange =
             <button className="px-4 py-2 bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors">
               Insulin verabreichen
             </button>
-            <button className="px-4 py-2 bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors">
-              Messung eintragen
-            </button>
+            <button
+  type="button"
+  onClick={() => setShowMeasurementForm(true)}
+  className="px-4 py-2 bg-white border border-[#6495ED] text-[#6495ED] rounded-lg hover:bg-[#6495ED] hover:text-white transition-colors"
+>
+  Messung eintragen
+</button>
           </div>
         </div>
+        {showMeasurementForm && (
+  <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+    
+    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+      Messung eintragen
+    </h3>
+
+    <div className="space-y-4">
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          Glukosewert (mg/dL)
+        </label>
+
+        <input
+          type="number"
+          value={measurementValue}
+          onChange={(e) => setMeasurementValue(e.target.value)}
+          placeholder="z. B. 125"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          Zeitpunkt
+        </label>
+
+        <input
+          type="datetime-local"
+          value={measurementDate}
+          onChange={(e) => setMeasurementDate(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          Grund / Situation
+        </label>
+
+        <select
+          value={measurementReason}
+          onChange={(e) => setMeasurementReason(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+        >
+          <option value="Normal">Keine besondere Situation</option>
+          <option value="Nach dem Essen">Nach dem Essen</option>
+          <option value="Vor dem Essen">Vor dem Essen</option>
+          <option value="Sport">Sport</option>
+          <option value="Krankheit">Krankheit</option>
+          <option value="Stress">Stress</option>
+          <option value="Medikamente">Medikamente</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          Körperliche Aktivität
+        </label>
+
+        <input
+          type="text"
+          value={measurementActivity}
+          onChange={(e) => setMeasurementActivity(e.target.value)}
+          placeholder="z. B. 30 Minuten Joggen"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">
+          Notizen
+        </label>
+
+        <textarea
+          value={measurementNotes}
+          onChange={(e) => setMeasurementNotes(e.target.value)}
+          placeholder="Weitere Informationen..."
+          rows={3}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2"
+        />
+      </div>
+
+      <div className="flex gap-2">
+
+        <button
+          type="button"
+          onClick={handleSaveMeasurement}
+          className="flex-1 bg-[#6495ED] text-white px-4 py-2 rounded-lg hover:bg-[#5885DC]"
+        >
+          Messung speichern
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowMeasurementForm(false)}
+          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600"
+        >
+          Abbrechen
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+)}
       </div>
     </div>
 

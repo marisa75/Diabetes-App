@@ -1,30 +1,166 @@
 import React from "react";
 import {
-    LineChart,
-    Line,
-    ResponsiveContainer,
-    XAxis,
-    YAxis,
-  } from "recharts";
-  
-  export function GlucoseChart({
-    data,
-  }: {
-    data: { time: string; value: number }[];
-  }) {
-    return (
-      <ResponsiveContainer width="100%" height={250}>
-        <LineChart data={data}>
-          <XAxis dataKey="time" />
-          <YAxis domain={[60, 250]} />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke="#6495ED"
-            strokeWidth={3}
-            dot={false}
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  ReferenceArea,
+  Tooltip,
+} from "recharts";
+
+type GlucosePoint = {
+  time: string;
+  value: number;
+  source?: "dexcom" | "manual";
+  reason?: string;
+  activity?: string;
+  notes?: string;
+};
+
+const DEXCOM_COLOR = "#6495ED";
+const MANUAL_COLOR = "#F59E0B";
+
+export function GlucoseChart({
+  data,
+}: {
+  data: GlucosePoint[];
+}) {
+  return (
+    <div>
+      {/* Legende */}
+      <div className="flex items-center gap-4 mb-2 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: DEXCOM_COLOR }}
           />
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  }
+          Automatisch (Dexcom)
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="w-2.5 h-2.5 rounded-full border-2"
+            style={{ backgroundColor: "#ffffff", borderColor: MANUAL_COLOR }}
+          />
+          Eigene Messung
+        </div>
+      </div>
+
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart
+        data={data}
+        margin={{
+          top: 10,
+          right: 10,
+          left: 0,
+          bottom: 5,
+        }}
+      >
+        {/* Time in Range: 70–180 mg/dL */}
+        <ReferenceArea
+          y1={70}
+          y2={180}
+          fill="#22c55e"
+          fillOpacity={0.08}
+          label={{
+            value: "Zielbereich 70–180",
+            position: "insideTopLeft",
+            fill: "#16a34a",
+            fontSize: 12,
+          }}
+        />
+
+        <XAxis
+          dataKey="time"
+          tick={{ fontSize: 11 }}
+          minTickGap={20}
+        />
+
+        <YAxis
+          domain={[60, 250]}
+          tick={{ fontSize: 11 }}
+          width={40}
+        />
+
+        <Tooltip
+          content={({ active, payload }) => {
+            if (!active || !payload || !payload.length) {
+              return null;
+            }
+
+            const point = payload[0].payload as GlucosePoint;
+
+            return (
+              <div className="bg-white border border-gray-200 rounded-lg shadow-md p-3">
+                <p className="font-semibold text-gray-800">
+                  {point.value} mg/dL
+                </p>
+
+                <p className="text-sm text-gray-500">
+                  {point.time}
+                </p>
+
+                {point.source === "manual" && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: MANUAL_COLOR }}
+                    >
+                      ● Eigene Messung
+                    </p>
+
+                    {point.reason && (
+                      <p className="text-sm text-gray-600">
+                        Grund: {point.reason}
+                      </p>
+                    )}
+
+                    {point.activity && (
+                      <p className="text-sm text-gray-600">
+                        Aktivität: {point.activity}
+                      </p>
+                    )}
+
+                    {point.notes && (
+                      <p className="text-sm text-gray-600">
+                        Notiz: {point.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          }}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={DEXCOM_COLOR}
+          strokeWidth={3}
+          isAnimationActive={false}
+          dot={(props: any) => {
+            const { cx, cy, payload, index } = props;
+
+            if (payload?.source === "manual") {
+              return (
+                <circle
+                  key={`dot-${index}`}
+                  cx={cx}
+                  cy={cy}
+                  r={6}
+                  fill={MANUAL_COLOR}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                />
+              );
+            }
+
+            return <React.Fragment key={`dot-${index}`} />;
+          }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+    </div>
+  );
+}
